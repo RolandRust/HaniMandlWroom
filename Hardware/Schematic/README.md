@@ -13,4 +13,4 @@ Bestückungsoption mit einem SPI OLED 128x64 Pixel (SSD1306/SSD1309) und ohne IN
 ## Schematic_SPI-Display_With-INA219
 Bestückungsoption mit einem SPI OLED 128x64 (SSD1306/SSD1309) Pixel und mit INA219
 ## Kommt noch irgendwan
-TFT Display angesteuert über SPI mir 320x240 Pikel und dem ILI9341 Displaytreiber. Für dieses Display wird der Schaltplan für SPI Display benötigt.
+TFT Display angesteuert über SPI mir 320x240 Pixel und dem ILI9341 Displaytreiber. Für dieses Display wird der Schaltplan für SPI Display benötigt.
