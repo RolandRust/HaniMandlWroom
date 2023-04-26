@@ -9,3 +9,8 @@ In diesem Ordner findet man alles was man braucht, um das Gehäuse und die Waage
 ![Gehäuse HaniMandl](./Bilder/HaniMandl.png)
 ## Gehäuse Waage
 ![Gehäuse Waage](./Bilder/Waage.png)
+# Eintelteile Gehäuse Hanimandl
+## Body (Filename: Bottom)
+![Body](./Bilder/Bottom.png)
+## Start/Stop Taster (Filename: Deckel_Front)
+![Start/Stop Taster](./Bilder/Deckel_Front.png)
