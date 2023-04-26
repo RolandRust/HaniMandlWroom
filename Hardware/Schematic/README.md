@@ -1,3 +1,16 @@
 # HaniMandlWroom/Hardware/Schematic
 HaniMandel für das Node MCU ESP32 38Pin Evaluation Board
-## In diesem Ordner findet man alle Schaltpläne für den Hanimandl
+## Was findet man in diesem Ordner
+In diesem Ordner findet man alle Schaltpläne für den Hanimandl
+## Schematic_Alle_Optionen.pdf
+Vollbestückung mit allen Bestückungsoptionen
+## Schematic_I2C-Display_No-INA219
+Bestückungsoption mit einem I2C OLED 128x64 Pixel (SSD1306/SSD1309) und ohne INA219
+## Schematic_I2C-Display_With-INA219
+Bestückungsoption mit einem I2C OLED 128x64 (SSD1306/SSD1309) Pixel und mit INA219
+## Schematic_SPI-Display_No-INA219
+Bestückungsoption mit einem SPI OLED 128x64 Pixel (SSD1306/SSD1309) und ohne INA219
+## Schematic_SPI-Display_With-INA219
+Bestückungsoption mit einem SPI OLED 128x64 (SSD1306/SSD1309) Pixel und mit INA219
+## Kommt noch irgendwan
+TFT Display angesteuert über SPI mir 320x240 Pikel und dem ILI9341 Displaytreiber. Für dieses Display wird der Schaltplan für SPI Display benötigt.
