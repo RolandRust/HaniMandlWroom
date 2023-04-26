@@ -4,12 +4,14 @@ HaniMandel für das Node MCU ESP32 38Pin Evaluation Board
 In diesem Ordner findet man alles was man braucht, um das Gehäuse und die Waage mir einem 3D-Drucker zu erstellen.
 ## Link zu dem 3D Projekt
 [Gehäuse und Waage](https://cad.onshape.com/documents/ed8334b01f82a8780d092716/w/744a4c21bb70565fea26ff45/e/c054f225e62c57c52ba056c9)
+
 # 3D Bilder
 ## Gehäuse HaniMandl
 ![Gehäuse HaniMandl](./Bilder/HaniMandl.png)
 ## Gehäuse Waage
 ![Gehäuse Waage](./Bilder/Waage.png)
-# Eintelteile Gehäuse Hanimandl
+
+# Einzelteile Gehäuse Hanimandl
 ## Body (Filename: Bottom)
 ![Body](./Bilder/Bottom.png)
 ## Start/Stop Taster (Filename: Deckel_Front)
@@ -28,3 +30,9 @@ In diesem Ordner findet man alles was man braucht, um das Gehäuse und die Waage
 ![Deckel Rückseite Display unten ohne US](./Bilder/Gehause_Back_Gross_1.png)
 ## Deckel Rückseite Display unten mit USB (Filename: /Gehause_Back_Gross_1_USB)
 ![Deckel Rückseite Display unten mit US](./Bilder/Gehause_Back_Gross_1_USB.png)
+
+# Einzelteile Gehäuse Waage
+## Waage oben (Filename: Waage_Top)
+![Waage oben](./Bilder/Waage_Top.png)
+## Waage unten (Filename: Waage_Bottom)
+![Waage unten](./Bilder/Waage_Bottom.png)
