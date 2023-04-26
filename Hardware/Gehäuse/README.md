@@ -24,11 +24,11 @@ In diesem Ordner findet man alles was man braucht, um das Gehäuse und die Waage
 ![eckel Bedienelemente](./Bilder/Deckel_Rechts.png)
 ## Deckel Rückseite Bedienelemente (Filename: Gehause_Back_Klein)
 ![Deckel Rückseite Bedienelemente](./Bilder/Gehause_Back_Klein.png)
-## Deckel Rückseite Display oben (Filename: /Gehause_Back_Gross_2)
+## Deckel Rückseite Display oben (Filename: Gehause_Back_Gross_2)
 ![Deckel Rückseite Display oben](./Bilder/Gehause_Back_Gross_2.png)
-## Deckel Rückseite Display unten ohne USB (Filename: /Gehause_Back_Gross_1)
+## Deckel Rückseite Display unten ohne USB (Filename: Gehause_Back_Gross_1)
 ![Deckel Rückseite Display unten ohne US](./Bilder/Gehause_Back_Gross_1.png)
-## Deckel Rückseite Display unten mit USB (Filename: /Gehause_Back_Gross_1_USB)
+## Deckel Rückseite Display unten mit USB (Filename: Gehause_Back_Gross_1_USB)
 ![Deckel Rückseite Display unten mit US](./Bilder/Gehause_Back_Gross_1_USB.png)
 
 # Einzelteile Gehäuse Waage
