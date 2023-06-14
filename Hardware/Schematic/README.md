@@ -10,7 +10,7 @@ Bestückungsoption mit einem I2C OLED 128x64 Pixel (SSD1306/SSD1309) und ohne IN
 Bestückungsoption mit einem I2C OLED 128x64 (SSD1306/SSD1309) Pixel und mit INA219
 ## Schematic_SPI-Display_No-INA219
 Bestückungsoption mit einem SPI OLED 128x64 Pixel (SSD1306/SSD1309) und ohne INA219
+TFT Display angesteuert über SPI mir 320x240 Pixel und dem ST7735 Displaytreiber und ohne INA219
 ## Schematic_SPI-Display_With-INA219
 Bestückungsoption mit einem SPI OLED 128x64 (SSD1306/SSD1309) Pixel und mit INA219
-## Kommt noch irgendwan
-TFT Display angesteuert über SPI mir 320x240 Pixel und dem ST7735 Displaytreiber. Für dieses Display wird der Schaltplan für SPI Display benötigt.
+TFT Display angesteuert über SPI mir 320x240 Pixel und dem ST7735 Displaytreiber und mit INA219
