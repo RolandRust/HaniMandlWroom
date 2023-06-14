@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "author": "Roland Rust",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 22.26, "left": 136, "attrs": {} },
+    { "type": "board-ssd1306", "id": "oled1", "top": 143.18, "left": -178.76, "attrs": {} },
+    {
+      "type": "wokwi-ili9341",
+      "id": "lcd1",
+      "top": 183.31,
+      "left": -115.49,
+      "rotate": 90,
+      "attrs": {}
+    },
+    { "type": "wokwi-slide-switch", "id": "sw1", "top": -90.61, "left": 68.1, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd1", "top": 343.46, "left": -270.5, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd2", "top": 151.84, "left": -249.62, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd3", "top": 189.7, "left": 49.61, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc1", "top": 41.53, "left": -249.96, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc2", "top": 228.94, "left": -298.47, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc3", "top": 196.84, "left": 275.7, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc4", "top": -100.59, "left": 117.91, "attrs": {} },
+    { "type": "wokwi-ky-040", "id": "encoder1", "top": 45.48, "left": -66.18, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd4", "top": 106.91, "left": 53.62, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc5", "top": 13.83, "left": 49.01, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+    [ "oled1:SCL", "esp:D22", "green", [ "v-158.87", "h383.57", "v65.49" ] ],
+    [ "oled1:SDA", "esp:D21", "green", [ "v-149.23", "h387.07", "v84.75" ] ],
+    [ "lcd1:CS", "esp:D5", "green", [ "h-48.63", "v135.93", "h528.22", "v-334.68" ] ],
+    [
+      "lcd1:RST",
+      "esp:D14",
+      "green",
+      [ "h-37.24", "v114.26", "h335.27", "v-207.08", "h-38.32", "v-72.48" ]
+    ],
+    [
+      "lcd1:D/C",
+      "esp:D13",
+      "green",
+      [ "h-28.38", "v95.45", "h339.51", "v-207.33", "h-37.58", "v-33.69" ]
+    ],
+    [ "lcd1:MOSI", "esp:D23", "green", [ "h-67.08", "v138.72", "h618.76", "v-169.58" ] ],
+    [ "lcd1:SCK", "esp:D18", "green", [ "h-58.12", "v110.81", "h570.48", "v-339.17" ] ],
+    [ "lcd1:MISO", "esp:D19", "green", [ "h-16.81", "v142.73", "h504.06", "v-417.86" ] ],
+    [ "lcd1:GND", "gnd1:GND", "black", [ "h0" ] ],
+    [ "oled1:GND", "gnd2:GND", "black", [ "v-26.77", "h-96.88" ] ],
+    [ "esp:GND.2", "gnd3:GND", "black", [ "h0" ] ],
+    [ "lcd1:VCC", "vcc2:VCC", "red", [ "h0" ] ],
+    [ "lcd1:LED", "vcc2:VCC", "green", [ "h0" ] ],
+    [ "vcc3:VCC", "esp:3V3", "red", [ "v14.21", "h-26.65", "v-56.38" ] ],
+    [ "oled1:VCC", "vcc1:VCC", "red", [ "v-51.05", "h-108.06" ] ],
+    [ "sw1:2", "vcc4:VCC", "green", [ "v22.5", "h39.24" ] ],
+    [ "sw1:3", "esp:D4", "green", [ "v27.7", "h192.8", "v150.05" ] ],
+    [ "sw1:1", "esp:D15", "green", [ "v38.11", "h219.6", "v159.59" ] ],
+    [ "gnd4:GND", "encoder1:GND", "black", [ "v0" ] ],
+    [ "vcc5:VCC", "encoder1:VCC", "red", [ "v0" ] ],
+    [ "encoder1:CLK", "esp:D33", "green", [ "h68.35", "v49.72" ] ],
+    [ "encoder1:DT", "esp:D26", "green", [ "h54.28", "v55.21" ] ],
+    [ "encoder1:SW", "esp:D32", "green", [ "h34.08", "v16.24" ] ]
+  ],
+  "dependencies": {}
+}
