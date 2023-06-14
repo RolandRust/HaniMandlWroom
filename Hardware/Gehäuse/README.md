@@ -18,6 +18,8 @@ In diesem Ordner findet man alles was man braucht, um das Gehäuse und die Waage
 ![Start/Stop Taster](./Bilder/Deckel_Front.png)
 ## Display (Filename: Deckel_Display)
 ![Display](./Bilder/Deckel_Display.png)
+## Display 2.8TFT (Filename: Deckel_Display_2.8TFT)
+![Display](./Bilder/Deckel_Display_2.8TFT.png)
 ## Deckel top klein (Filename: Deckel_Back)
 ![Deckel top klein](./Bilder/Deckel_Back.png)
 ## Deckel Bedienelemente (Filename: Deckel_Rechts)
