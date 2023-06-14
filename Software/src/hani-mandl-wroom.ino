@@ -120,8 +120,10 @@ String version = "W.0.1";
 //
 // Usereinstellung
 //
-#define USER 3                    // 1 = Hanimandl Standart
-                                  // 2 = Gerold
+// Könnt ihr auf eins lassen. User 2 und User 3 haben andere Glaseinstellungen
+//
+#define USER 1                    // 1 = Hanimandl Standart (ist die default einstellung so wie Ihr es gewohnt seit)
+                                  // 2 = Gerold (Wird bei euch nicht funktionieren, da die Logos fehlen im ResPos)
                                   // 3 = Roli
 
 //
