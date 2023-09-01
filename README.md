@@ -15,7 +15,7 @@ Sollte es gleich jemand kommerziell benützen, weise ich dich darauf hin, dass d
 
 ## Benutzte Programme und Lizenzen
 
-Gehäuse: OnShape mit Non Profit Lizenz
+Gehäuse: OnShape mit Non Profit Lizenz<br>
 PCB: DipTrace mit Non Profit Lizenz
 
 ## Appell an dich
