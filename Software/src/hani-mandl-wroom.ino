@@ -148,7 +148,7 @@ String version = "W.0.2";
                                   // Sonst bleibt der Servo in Stop-Position einige Grad offen! Nach dem Update erst prüfen!
 #define ROTARY_SCALE 1            // in welchen Schritten springt unser Rotary Encoder. 
                                   // Beispiele: KY-040 = 2, HW-040 = 1, für Poti-Betrieb auf 1 setzen
-#define DISPLAY_TYPE 99            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
+#define DISPLAY_TYPE 3            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
                                   // 2 = 128x64 pixel OLED Display angeschlossen über SPI
                                   // 3 = 320x240 pixel TFT Display ST7789 angeschlossen über SPI
                                   // 99 = Oled über I2C und TFT über SPI für development
