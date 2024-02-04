@@ -429,6 +429,7 @@ int inawatchdog = 1;                // 0 = aus, 1 = ein / wird benötigt um INA 
 int offset_winkel = 0;              // Offset in Grad vom Schlieswinkel wen der Servo Übersrom hatte (max +3Grad vom eingestelten Winkel min)
 int color_scheme = 0;               // 0 = dunkel, 1 = hell / Wechsel vom color scheme für den TFT Display
 int color_marker = 2;               // Farbe für den Marker für das TFT Display
+int ota_done = 0;                   // Variable für OTA Update
 
 //Variablen für TFT update
 bool no_ina;
@@ -4220,6 +4221,7 @@ void setup() {
     delay(2500);
   }
   // Setup der Waage, Skalierungsfaktor setzen
+  int x_pos;
   if (waage_vorhanden ==1) {                         // Waage angeschlossen?
     if (faktor == 0) {                               // Vorhanden aber nicht kalibriert
       #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
@@ -4227,7 +4229,7 @@ void setup() {
         //u8g2.setFont(u8g2_font_courB18_tf);
         u8g2.setFont(u8g2_font_courB12_tf);
         sprintf(ausgabe,ER_LI11);
-        int x_pos = CenterPosX(ausgabe, 10, 128);
+        x_pos = CenterPosX(ausgabe, 10, 128);
         u8g2.setCursor(x_pos, 30); u8g2.print(ausgabe);
         sprintf(ausgabe,ER_LI12);
         x_pos = CenterPosX(ausgabe, 10, 128);
@@ -4266,7 +4268,7 @@ void setup() {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_courB24_tf);
       sprintf(ausgabe,ER_LI01);
-      int x_pos = CenterPosX(ausgabe, 20, 128);
+      x_pos = CenterPosX(ausgabe, 20, 128);
       u8g2.setCursor( x_pos, 24); u8g2.print(ausgabe);
       sprintf(ausgabe,ER_LI02);
       x_pos = CenterPosX(ausgabe, 20, 128);
@@ -4305,11 +4307,12 @@ void setup() {
       #endif
     }
     else if (faktor != 0) {
+      int x_pos;
       #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
         u8g2.clearBuffer();
         u8g2.setFont(u8g2_font_courB14_tf);
         sprintf(ausgabe,ER_LI21);
-        int x_pos = CenterPosX(ausgabe, 11, 128);
+        x_pos = CenterPosX(ausgabe, 11, 128);
         u8g2.setCursor( x_pos, 28); u8g2.print(ausgabe);
         sprintf(ausgabe,ER_LI22);
         x_pos = CenterPosX(ausgabe, 11, 128);
@@ -4717,6 +4720,7 @@ void ina219_measurement() {
         gfx->setCursor(x_pos, 150);
         gfx->print(ausgabe);
       #endif
+      ota_done = 1;
       #ifdef isDebug
         Serial.println("OTA update finished successfully!");
       #endif
@@ -4745,19 +4749,18 @@ void ina219_measurement() {
         Serial.println("There was an error during OTA update!");
       #endif
     }
-    delay(5000);
-    ESP.restart();
   }
 
   void OTAdisconnect(void) {
     #ifdef isDebug
       Serial.println("OTAdisconnect");
     #endif
+    int x_pos;
     #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_courB14_tf);
       sprintf(ausgabe, "Stop WiFi");
-      int x_pos = CenterPosX(ausgabe, 11, 128);
+      x_pos = CenterPosX(ausgabe, 11, 128);
       u8g2.setCursor(x_pos, 35);
       u8g2.print(ausgabe);
       u8g2.sendBuffer();
@@ -4787,6 +4790,10 @@ void ina219_measurement() {
       }
       else {
         server.handleClient();
+	if (ota_done == 1) {
+          delay(5000);
+          ESP.restart();
+        }
       }
     }
     if (digitalRead(switch_setup_pin) == LOW) {
@@ -4878,7 +4885,7 @@ void ina219_measurement() {
       #ifdef isDebug
         Serial.print("IP adress: "); Serial.println(WiFi.localIP());
       #endif
-      ElegantOTA.begin(&server);    // Start ElegantOTA
+      ElegantOTA.begin(&server);
       ElegantOTA.onStart(onOTAStart);
       ElegantOTA.onProgress(onOTAProgress);
       ElegantOTA.onEnd(onOTAEnd);
