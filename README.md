@@ -10,14 +10,13 @@ Als Grundlage für dieses Projekt bediente ich mich am [develop Branch (V0.2.13)
 
 ## Copyright
 
-Die Software unterliegt dem gleichen Coryright und Anforderungen wie das Hauptproject.
+Die Software unterliegt dem gleichen Coryright und Anforderungen wie das Hauptprojekt.
 Die Hardware (Gehäuse und PCB) sind von mir gemacht worden. Ich verzichte auf ein Copyriht für den Eigengebrauch. Auch wenn ich den Hanimandel nicht kommerziell vertreibe, gehören mir die Daten vom Gehäuse und PCB und diese dürfen nicht ohne meine Zustimmung kommerziell benützt werden.
-Sollte es gleich jemand kommerziell benützen, weise ich dich darauf hin, dass das Gehäuse und die PCB mit einer Non Profit Lizenz (Maker Lizenz) erstellt wurden. Für eine Kommerzielle Nutzung von den Daten würden also mehrere tausend Dollar anfallen, wenn die original Dateien verwendet werden.
 
-## Benutzte Programme und Lizenzen
+## Benutzte Programme und Lizensen
 
-Gehäuse: OnShape mit Non Profit Lizenz<br>
-PCB: DipTrace mit Non Profit Lizenz
+Gehäuse: Ondsel/FreeCAD (keine Lizenz notwendig)
+PCB: DipTrace (kommerzielle Lizenz)
 
 ## Appell an dich
 
