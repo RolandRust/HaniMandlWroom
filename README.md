@@ -15,7 +15,7 @@ Die Hardware (Gehäuse und PCB) sind von mir gemacht worden. Ich verzichte auf e
 
 ## Benutzte Programme und Lizensen
 
-Gehäuse: Ondsel/FreeCAD (keine Lizenz notwendig)
+Gehäuse: Ondsel/FreeCAD (keine Lizenz notwendig)<br>
 PCB: DipTrace (kommerzielle Lizenz)
 
 ## Appell an dich
