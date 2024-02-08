@@ -32,7 +32,7 @@ In diesem Ordner findet man alles was man braucht, um das Gehäuse und die Waage
 ![Deckel Rückseite Display unten mit US](./Bilder/Back_Big_1_USB.jpg)
 
 # Einzelteile Gehäuse Waage
-## Waage oben (Filename: Waage_Top)
+## Waage oben (Filename: Scale_Top)
 ![Waage oben](./Bilder/Scale_Top.jpg)
-## Waage unten (Filename: Waage_Bottom)
+## Waage unten (Filename: Scale_Bottom)
 ![Waage unten](./Bilder/Scale_Bottom.jpg)
