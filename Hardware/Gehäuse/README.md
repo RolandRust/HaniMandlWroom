@@ -7,7 +7,7 @@ In diesem Ordner findet man alles was man braucht, um das Gehäuse und die Waage
 ## Gehäuse HaniMandl
 ![Gehäuse HaniMandl](./Bilder/_Hanimandl_A2plus.jpg)
 ## Gehäuse Waage
-![Gehäuse Waage](./Bilder/_Scale.jpg)
+![Gehäuse Waage](./Bilder/Scale.jpg)
 
 # Einzelteile Gehäuse Hanimandl
 ## Body (Filename: Bottom)
