@@ -1,136 +1,112 @@
 //Process Setup
-char PS_MI01[] = "Taravalues";
-char PS_MI02[] = "Calibration";
-char PS_MI03[] = "Fill quantity";
-char PS_MI04[] = "Automatic";
-char PS_MI05[] = "Servosettings";
-char PS_MI06[] = "Parameter";
-char PS_MI07[] = "Counter";
-char PS_MI08[] = "CounterTrip";
-char PS_MI09[] = "Clear Prefs";
-char PS_MI10[] = "INA219 Setup";
+char TARAVALUES[]			= "Taravalues";
+char CALIBRATION[]			= "Calibration";
+char FILL_QUANTITY[]		= "Fill quantity";
+char AUTOMATIC[]			= "Automatic";
+char SERVOSETTINGS[]		= "Servosettings";
+char PARAMETER[]			= "Parameter";
+char COUNTER[]				= "Counter";
+char COUNTER_TRIP[]			= "CounterTrip";
+char CLEAR_PREFS[]			= "Clear Prefs";
+char INA219_SETUP[]			= "INA219 Setup";
 
-//Setup Tarawerte
-char ST_TI01[] = "Taravalues jars";
-char ST_TI02[] = "missing";
+//Setup Taravalues
+char TARAVALUES_JAR[]		= "Taravalues jars";			//DISPLAY:	Taravalues jars
+char MISSING[]				= "missing";					//			missing
 
-//Setup Kalibration
-char SC_TO01[] = "Calibration";
-char SC_LI01[] = "Please empty the";
-char SC_LI02[] = "scale and confirm";
-char SC_LI03[] = "with OK";
-char SC_LI04[] = "Please set up";
-char SC_LI05[] = "and confirm";
-char SC_LI06[] = "with ok";
+//Setup Calibration
+char PLEASE_EMPTY_THE[]		= "Please empty the";			//DISPLAY:	Please empty the
+char SCALE_AND_CONFIRM[]	= "scale and confirm";			//			scale and confirm
+char WITH_OK_1[]			= "with OK";					//			with OK
+char PLEASE_SET_UP[]		= "Please set up";				//DISPLAY:	Please set up
+char AND_CONFIRM[]			= "and confirm";				//			{500g} and confirm
+char WITH_OK_2[]			= "with ok";					//			with ok
 
-//Setup Fuellmenge
-char SF_TO01[] = "Fill quantity jars";
+//Setup quantity jars
+char FILL_QUANTITY_JARS[]	= "Fill quantity jars";
 
 //Setup Automatik
-char SA_TO01[] = "Automatic";
-char SA_MI01[] = "Autostart";
-char SA_MI02[] = "Jar tolerance";
-char SA_MI03[] = "Correction";
-char SA_MI04[] = "Autocorrection";
-char SA_MI05[] = "-> Kindness";
-char SA_MI06[] = "Flow g/time";
-char SA_MI07[] = "Save";
+char AUTOSTART[]			= "Autostart";
+char JAR_TOLERANCE[]		= "Jar tolerance";
+char CORRECTION[]			= "Correction";
+char AUTOCORRECTION[]		= "Autocorrection";
+char KINDNESS[]				= "-> Kindness";
+char FLOW_G_OVER_TIME[]		= "Flow g/time";
 
 //Setup Servo
-char SS_TO01[] = "Servosettings";
-char SS_MI01[] = "Livesetup";
-char SS_MI02[] = "Minimum";
-char SS_MI03[] = "Finedosage";
-char SS_MI04[] = "Maximum";
-char SS_MI05[] = "Save";
+char LIVESETUP[]			= "Livesetup";
+char MINIMUM[]				= "Minimum";
+char FINEDOSAGE[]			= "Finedosage";
+char MAXIMUM[]				= "Maximum";
 
 //Setup Parameter
-char SP_TO01[] = "Parameter";
-char SP_MI01[] = "Buzzer";
-char SP_MI02[] = "LED";
-char SP_MI03[] = "Show logo";
-char SP_MI04[] = "Show credits";
-char SP_MI05[] = "Colorscheme";
-char SP_MI06[] = "Marker color";
-char SP_MI07[] = "Save";
-
-//Setup Zählwerk/ZählwerkTrip
-char SZ_TO01[] = "Counter";
-char SZ_TO02[] = "Counter trip";
+char BUZZER[]				= "Buzzer";
+char LED[]					= "LED";
+char SHOW_LOGO[]			= "Show logo";
+char SHOW_CREDITS[]			= "Show credits";
+char COLORSCHEME[]			= "Colorscheme";
+char MARKER_COLOR[]			= "Marker color";
 
 //Setup INA219
-char SI_TO01[] = "INA219 Setup";
-char SI_MI01[] = "Servo current";
-char SI_MI02[] = "Cal. honey gate";
-char SI_MI03[] = "Show current";
-char SI_MI04[] = "Save";
-char SI_LI01[] = "max. current:";
-char SI_LI02[] = "min. angle:";
-char SI_LI03[] = "Calibration running";
-char SI_LI04[] = "Current:";
-char SI_LI05[] = "Angle:";
-char SI_LI06[] = "Honey gate:";
-char SI_LI07[] = "Calibration done";
+char SERVO_CURRENT[]		= "Servo current";
+char CAL_HONEY_GATE[]		= "Cal. honey gate";
+char SHOW_CURRENT[]			= "Show current";
+char MAX_CURRENT[]			= "max. current";
+char MIN_ANGLE[]			= "min. angle";
+char CALIBRATION_RUNNING[]	= "Calibration running";
+char CURRENT[]				= "Current";
+char ANGLE[]				= "Angle";
+char HONEY_GATE[]			= "Honey gate";
+char CALIBRATION_DONE[]		= "Calibration done";
 
 //Setup Clear Preferenzes
-char CP_TO01[] = "Clear Preferences";
-char CP_MI01[] = "Clear Preferences";
-char CP_MI02[] = "Clear NVS memory";
+char CLEAR_PREFERENCES[]	= "Clear Preferences";
+char CLEAR_NVS_MEMORY[]		= "Clear NVS memory";
 
-char ER_LI01[] = "no";
-char ER_LI02[] = "scale!";
-char ER_LI11[] = "not";
-char ER_LI12[] = "calibrated";
-char ER_LI21[] = "empty";
-char ER_LI22[] = "the scale!";
+//Warnings
+char NO[] 					= "no";							//DISPLAY:	no
+char SCALE[]				= "scale!";						//			scale!
+char NOT[]					= "not";						//DISPLAY:	not
+char CALIBRATED[]			= "calibrated";					//			calibrated
+char EMPTY[]				= "empty";						//DISPLAY:	empty
+char THE_SCALE[]			= "the scale!";					//			the scale!
 
-//Manueller Modus
-char MM_TO01[] = "Manual";
-char MM_LI01[] = "Servo:";
-char MM_LI02[] = "Tara:";
-char MM_LI03[] = "INA:";
-char MM_LI04[] = "Curr.:";
-char MM_LI05[] = "max:";
-char MM_LI06[] = "actual:";
-char MM_LI07[] = "A";                   //Winkel
-char MM_LI08[] = "Servo current:";
-char MM_LI09[] = "Tara";
+//Manual Modus
+char MANUAL[]				= "Manual";
+char SERVO[]				= "Servo";
+char TARA[]					= "Tara";
+char INA[]					= "INA";
+char CURR[]					= "Curr.";                      //Current
+char MAX_1[]				= "max";
+char ACTUAL[]				= "actual";
+char A_UPPER_CASE[]			= "A";							//[Angle - only OLED display]
 
-//Automatik Modus
-//char AM_TO01[] = "Automatic";
-char AM_LI01[] = "INA219";
-char AM_LI02[] = "Autostart";
-char AM_LI03[] = "Autocorrection";
-char AM_LI04[] = "Current:";
-char AM_LI05[] = "Correction:";
-char AM_LI06[] = "Autocorr.:";
-char AM_LI07[] = "Min:";
-char AM_LI08[] = "Max:";
-char AM_LI09[] = "Act:";
-char AM_LI10[] = "Please put";
-char AM_LI11[] = "up the jar";
-char AM_LI12[] = "START";
-char AM_LI13[] = "Tara jar";
-char AM_LI14[] = "Flow g/time";
-char AM_LI15[] = "Flow:";
-char AM_LI16[] = "A";
-char AM_LI17[] = "AS";
-char AM_LI18[] = "Servo current:";
-char AM_LI19[] = "a";
-char AM_LI20[] = "c";
-char AM_LI21[] = "f";
+//Automatic Modus
+char INA219[]				= "INA219";
+char AUTOCORR[]				= "Autocorr.";					//[no space for Autocorrection]
+char MIN[]					= "Min";						//[max 3 letters]
+char MAX_2[]				= "Max";						//[max 3 letters]
+char ACT[]					= "Act";						//[max 3 letters - no space for Actual]
+char PLEASE_PUT[]			= "Please put";					//DISPLAY:	Please put
+char UP_THE_JAR[]			= "up the jar";					//			up the jar
+char TARA_JAR[]				= "Tara jar";
+char FLOW[]					= "Flow:";
+char AS[]					= "AS";							//[Autostart - only OLED Display]
+char A_LOWER_CASE[]			= "a";							//[angle or auto - only OLED Display]
+char C_LOWER_CASE[]			= "c";							//[correction - only OLED Display]
+char F_LOWER_CASE[]			= "f";							//[flow - only OLED Display]
 
-char AM_ER01[] = "no tara!";
+char NO_TARA[]				= "no tara!";
 
-//Diverses
-char AUS[] = "off";
-char EIN[] = "on";
-char DUNKEL[] = "dark";
-char HELL[] = "light";
-char SUMME[] = "Total";
-char RUECKSETZEN[] = "Reset";
-char ABBRECHEN[] = "Interrupt";
-char START[] = "Start";
-char ZU[] = "open";
-char OFFEN[] = "close";
-char ZURUECK[] = "Back";
+char OFF[]					= "off";
+char ON[]					= "on";
+char DARK[]					= "dark";
+char LIGHT[]				= "light";
+char TOTAL[]				= "Total";
+char RESET[]				= "Reset";
+char ABORT[]				= "Abort";
+char START[]				= "Start";
+char OPEN[]					= "open";
+char CLOSE[]				= "close";
+char BACK[]					= "Back";
+char SAVE[]					= "Save";
