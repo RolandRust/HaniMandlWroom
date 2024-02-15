@@ -148,7 +148,7 @@ String version = "W.0.2";
                                   // Sonst bleibt der Servo in Stop-Position einige Grad offen! Nach dem Update erst prüfen!
 #define ROTARY_SCALE 1            // in welchen Schritten springt unser Rotary Encoder. 
                                   // Beispiele: KY-040 = 2, HW-040 = 1, für Poti-Betrieb auf 1 setzen
-#define DISPLAY_TYPE 3            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
+#define DISPLAY_TYPE 99            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
                                   // 2 = 128x64 pixel OLED Display angeschlossen über SPI
                                   // 3 = 320x240 pixel TFT Display ST7789 angeschlossen über SPI
                                   // 99 = Oled über I2C und TFT über SPI für development
@@ -385,7 +385,7 @@ int intGewichtD = 1;                // A.P. erlaubte Abweichung zu intGewicht
 const int RunningAverageCount = 3;  // A.P.
 int NextRunningAverage;             // A.P.   
 float RunningAverageBuffer[RunningAverageCount];     //A.P.
-int Winkelmerker;  // A.P. Merker für optimalen Winkel für nächste Befüllung
+int Winkelmerker;                   // A.P. Merker für optimalen Winkel für nächste Befüllung
 int kulanz_gr;                      // gewollte Überfüllung im Autokorrekturmodus in Gramm
 int winkel;                         // aktueller Servo-Winkel
 int winkel_hard_min = 0;            // Hard-Limit für Servo
@@ -802,9 +802,9 @@ void setupTripCounter(void) {
     gfx->fillScreen(BACKGROUND);
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
-    int x_pos = CenterPosX(SZ_TO02, 14, 320);
+    int x_pos = CenterPosX(COUNTER_TRIP, 14, 320);
     gfx->setCursor(x_pos, 25);
-    gfx->println(SZ_TO02);
+    gfx->println(COUNTER_TRIP);
     gfx->drawLine(0, 30, 320, 30, TEXT);
   #endif
   while (i > 0) { //Erster Screen: Anzahl pro Glasgröße
@@ -919,7 +919,7 @@ void setupTripCounter(void) {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_courB14_tf);
       u8g2.setCursor(5, 15);
-      u8g2.print(SUMME);
+      u8g2.print(TOTAL);
       u8g2.setFont(u8g2_font_courB18_tf);
       u8g2.setCursor(10, 50);
       sprintf(ausgabe, "%5.1fkg", TripAbfuellgewicht);
@@ -928,7 +928,7 @@ void setupTripCounter(void) {
     #endif
     #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
       gfx->setFont(Punk_Mono_Bold_600_375);
-      sprintf(ausgabe, SUMME);
+      sprintf(ausgabe, TOTAL);
       x_pos = CenterPosX(ausgabe, 36, 320);
       gfx->setCursor(x_pos, 124);
       gfx->print(ausgabe);
@@ -966,8 +966,8 @@ void setupTripCounter(void) {
       #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
         u8g2.setFont(u8g2_font_courB10_tf);
         u8g2.clearBuffer();
-        u8g2.setCursor(10, 12);    u8g2.print(RUECKSETZEN);
-        u8g2.setCursor(10, 28);    u8g2.print(ABBRECHEN);
+        u8g2.setCursor(10, 12);    u8g2.print(RESET);
+        u8g2.setCursor(10, 28);    u8g2.print(ABORT);
         u8g2.setCursor(0, 12 + ((pos) * 16));
         u8g2.print("*");
         u8g2.sendBuffer();
@@ -976,11 +976,11 @@ void setupTripCounter(void) {
         gfx->setCursor(5, 30+(1 * y_offset_tft));
         if (pos == 0) {gfx->setTextColor(MARKER);}
         else {gfx->setTextColor(TEXT);}
-        gfx->print(RUECKSETZEN);
+        gfx->print(RESET);
         gfx->setCursor(5, 30+(2 * y_offset_tft));
         if (pos == 1) {gfx->setTextColor(MARKER);}
         else {gfx->setTextColor(TEXT);}
-        gfx->print(ABBRECHEN);
+        gfx->print(ABORT);
       #endif
       if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
         #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
@@ -1018,9 +1018,9 @@ void setupCounter(void) {
     gfx->fillScreen(BACKGROUND);
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
-    int x_pos = CenterPosX(SZ_TO01, 14, 320);
+    int x_pos = CenterPosX(COUNTER, 14, 320);
     gfx->setCursor(x_pos, 25);
-    gfx->println(SZ_TO01);
+    gfx->println(COUNTER);
     gfx->drawLine(0, 30, 320, 30, TEXT);
   #endif
   while (i > 0) { //Erster Screen: Anzahl pro Glasgröße
@@ -1135,7 +1135,7 @@ void setupCounter(void) {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_courB14_tf);
       u8g2.setCursor(1, 15);
-      u8g2.print(SUMME);
+      u8g2.print(TOTAL);
       u8g2.setFont(u8g2_font_courB18_tf);
       u8g2.setCursor(10, 50);
       sprintf(ausgabe, "%5.1fkg", Abfuellgewicht);
@@ -1144,7 +1144,7 @@ void setupCounter(void) {
     #endif
     #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
       gfx->setFont(Punk_Mono_Bold_600_375);
-      sprintf(ausgabe, SUMME);
+      sprintf(ausgabe, TOTAL);
       x_pos = CenterPosX(ausgabe, 36, 320);
       gfx->setCursor(x_pos, 124);
       gfx->print(ausgabe);
@@ -1182,8 +1182,8 @@ void setupCounter(void) {
       #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
         u8g2.setFont(u8g2_font_courB10_tf);
         u8g2.clearBuffer();
-        u8g2.setCursor(10, 12);    u8g2.print(RUECKSETZEN);
-        u8g2.setCursor(10, 28);    u8g2.print(ABBRECHEN);
+        u8g2.setCursor(10, 12);    u8g2.print(RESET);
+        u8g2.setCursor(10, 28);    u8g2.print(ABORT);
         u8g2.setCursor(0, 12 + ((pos) * 16));
         u8g2.print("*");
         u8g2.sendBuffer();
@@ -1192,11 +1192,11 @@ void setupCounter(void) {
         gfx->setCursor(5, 30+(1 * y_offset_tft));
         if (pos == 0) {gfx->setTextColor(MARKER);}
         else {gfx->setTextColor(TEXT);}
-        gfx->print(RUECKSETZEN);
+        gfx->print(RESET);
         gfx->setCursor(5, 30+(2 * y_offset_tft));
         if (pos == 1) {gfx->setTextColor(MARKER);}
         else {gfx->setTextColor(TEXT);}
-        gfx->print(ABBRECHEN);
+        gfx->print(ABORT);
       #endif
       if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
         while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
@@ -1276,7 +1276,7 @@ void setupTara(void) {
           u8g2.print(ausgabe);
         }
         else {
-          sprintf(ausgabe, "%8s", ST_TI02); 
+          sprintf(ausgabe, "%8s", MISSING); 
           u8g2.print(ausgabe);
         }
         j++;
@@ -1291,9 +1291,9 @@ void setupTara(void) {
       }
       gfx->setTextColor(TEXT);
       gfx->setFont(Punk_Mono_Bold_240_150);
-      x_pos = CenterPosX(ST_TI01, 14, 320);
+      x_pos = CenterPosX(TARAVALUES_JAR, 14, 320);
       gfx->setCursor(x_pos, 25);
-      gfx->println(ST_TI01);
+      gfx->println(TARAVALUES_JAR);
       gfx->drawLine(0, 30, 320, 30, TEXT);
       j = 0;
       while(j < 5) {
@@ -1317,7 +1317,7 @@ void setupTara(void) {
           gfx->print(ausgabe);
         }
         else {
-          sprintf(ausgabe, "%11s", ST_TI02); 
+          sprintf(ausgabe, "%11s", MISSING); 
           gfx->print(ausgabe);
         }
         j++;
@@ -1333,9 +1333,9 @@ void setupCalibration(void) {
   #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
     u8g2.clearBuffer();
     u8g2.setFont(u8g2_font_courB08_tf);
-    u8g2.setCursor(0, 12);    u8g2.print(SC_LI01);        //Bitte Waage leeren
-    u8g2.setCursor(0, 24);    u8g2.print(SC_LI02);        //und mit OK
-    u8g2.setCursor(0, 36);    u8g2.print(SC_LI03);        //bestätigen
+    u8g2.setCursor(0, 12);    u8g2.print(PLEASE_EMPTY_THE);
+    u8g2.setCursor(0, 24);    u8g2.print(SCALE_AND_CONFIRM);
+    u8g2.setCursor(0, 36);    u8g2.print(WITH_OK_1);
     u8g2.sendBuffer();
   #endif
   #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -1343,17 +1343,17 @@ void setupCalibration(void) {
     int kali_gewicht_old = -1;
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
-    int x_pos = CenterPosX(SC_TO01, 14, 320);             //Kalibrieren
+    int x_pos = CenterPosX(CALIBRATION, 14, 320);
     gfx->setCursor(x_pos, 25);
-    gfx->println(SC_TO01);
+    gfx->println(CALIBRATION);
     gfx->drawLine(0, 30, 320, 30, TEXT);
-    sprintf(ausgabe, SC_LI01);                            //Bitte Waage leeren
+    sprintf(ausgabe, PLEASE_EMPTY_THE);
     x_pos = CenterPosX(ausgabe, 14, 320);
     gfx->setCursor(x_pos, 100); gfx->print(ausgabe);
-    sprintf(ausgabe, SC_LI02);                            //und mit OK
+    sprintf(ausgabe, SCALE_AND_CONFIRM);
     x_pos = CenterPosX(ausgabe, 14, 320);
     gfx->setCursor(x_pos, 128); gfx->print(ausgabe);
-    sprintf(ausgabe, SC_LI03);                            //bestätigen
+    sprintf(ausgabe, WITH_OK_1);
     x_pos = CenterPosX(ausgabe, 14, 320);
     gfx->setCursor(x_pos, 156); gfx->print(ausgabe);
   #endif
@@ -1377,9 +1377,9 @@ void setupCalibration(void) {
     gfx->fillScreen(BACKGROUND);
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
-    x_pos = CenterPosX(SC_TO01, 14, 320);
+    x_pos = CenterPosX(CALIBRATION, 14, 320);
     gfx->setCursor(x_pos, 25);
-    gfx->println(SC_TO01);
+    gfx->println(CALIBRATION);
     gfx->drawLine(0, 30, 320, 30, TEXT);
   #endif
   initRotaries(SW_MENU, kali_gewicht, 100, 9999, 1); 
@@ -1397,18 +1397,18 @@ void setupCalibration(void) {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_courB08_tf);
       u8g2.setCursor(0, 12);
-      u8g2.print(SC_LI04);                                        //Bitte
+      u8g2.print(PLEASE_SET_UP);
       sprintf(ausgabe, " %dg", kali_gewicht);                     //Kalibrations Gewicht
       u8g2.print(ausgabe);
-      u8g2.setCursor(0, 24);    u8g2.print(SC_LI05);              //aufstellen und mit
-      u8g2.setCursor(0, 36);    u8g2.print(SC_LI06);              //OK bestätigen
+      u8g2.setCursor(0, 24);    u8g2.print(AND_CONFIRM);
+      u8g2.setCursor(0, 36);    u8g2.print(WITH_OK_2);
       u8g2.sendBuffer();
     #endif
     #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
       if (kali_gewicht != kali_gewicht_old) {
         gfx->setFont(Punk_Mono_Bold_240_150);
         gfx->setTextColor(TEXT);
-        sprintf(ausgabe, "%s", SC_LI04);                            //Bitte
+        sprintf(ausgabe, "%s", PLEASE_SET_UP);
         x_pos = CenterPosX(ausgabe, 14, 320);
         gfx->setCursor(x_pos, 100); gfx->print(ausgabe);
         gfx->setTextColor(BACKGROUND);
@@ -1420,10 +1420,10 @@ void setupCalibration(void) {
         x_pos = CenterPosX(ausgabe, 14, 320);
         gfx->setCursor(x_pos, 128); gfx->print(ausgabe);
         gfx->setTextColor(TEXT);
-        sprintf(ausgabe, "%s", SC_LI05);                            //aufstellen und mit
+        sprintf(ausgabe, "%s", AND_CONFIRM);
         x_pos = CenterPosX(ausgabe, 14, 320);
         gfx->setCursor(x_pos, 156); gfx->print(ausgabe);
-        sprintf(ausgabe, "%s", SC_LI06);                            //OK bestätigen
+        sprintf(ausgabe, "%s", WITH_OK_2);
         x_pos = CenterPosX(ausgabe, 14, 320);
         gfx->setCursor(x_pos, 184); gfx->print(ausgabe);
         kali_gewicht_old = kali_gewicht;
@@ -1469,13 +1469,13 @@ void setupServoWinkel(void) {
     bool change = false;
     int wert_old = -1;
     int MenuepunkteAnzahl = 5;
-    const char *menuepunkte[MenuepunkteAnzahl] = {SS_MI01, SS_MI02, SS_MI03, SS_MI04, SS_MI05};
+    const char *menuepunkte[MenuepunkteAnzahl] = {LIVESETUP, MINIMUM, FINEDOSAGE, MAXIMUM, SAVE};
     gfx->fillScreen(BACKGROUND);
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
-    int x_pos = CenterPosX(SS_TO01, 14, 320);
+    int x_pos = CenterPosX(SERVOSETTINGS, 14, 320);
     gfx->setCursor(x_pos, 25);
-    gfx->println(SS_TO01);
+    gfx->println(SERVOSETTINGS);
     gfx->drawLine(0, 30, 320, 30, TEXT);
   #endif
   i = 1;
@@ -1521,27 +1521,27 @@ void setupServoWinkel(void) {
       u8g2.setFont(u8g2_font_courB08_tf);
       u8g2.clearBuffer();
       u8g2.setCursor(10, 1 * y_offset);
-      u8g2.print(SS_MI01);
+      u8g2.print(LIVESETUP);
       u8g2.setCursor(95, 1 * y_offset);
-      sprintf(ausgabe,"%5s", (servo_live==false?AUS:EIN));
+      sprintf(ausgabe,"%5s", (servo_live==false?OFF:ON));
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 2 * y_offset);
-      u8g2.print(SS_MI02);
+      u8g2.print(MINIMUM);
       u8g2.setCursor(95, 2 * y_offset);
       sprintf(ausgabe,"%4d°", winkel_min);
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 3 * y_offset);
-      u8g2.print(SS_MI03);
+      u8g2.print(FINEDOSAGE);
       u8g2.setCursor(95, 3 * y_offset);
       sprintf(ausgabe,"%4d°", winkel_fein);
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 4 * y_offset);
-      u8g2.print(SS_MI04);
+      u8g2.print(MAXIMUM);
       u8g2.setCursor(95, 4 * y_offset);
       sprintf(ausgabe,"%4d°", winkel_max);
       u8g2.print(ausgabe);
       u8g2.setCursor(10, (7 * y_offset) + 5);
-      u8g2.print(SS_MI05);
+      u8g2.print(SAVE);
       if (wert_aendern == false && menuitem < menuitem_used) {
         u8g2.setCursor(1, 10+((menuitem)*y_offset)); u8g2.print("*");
       }
@@ -1572,7 +1572,7 @@ void setupServoWinkel(void) {
             gfx->setTextColor(MARKER);
           }
           switch (j) {
-            case 0: sprintf(ausgabe,"%s", servo_live==false?AUS:EIN);
+            case 0: sprintf(ausgabe,"%s", servo_live==false?OFF:ON);
                     if (wert_old != servo_live and wert_aendern == true and j == pos) {
                       change = true;
                       wert_old = servo_live;
@@ -1669,14 +1669,14 @@ void setupServoWinkel(void) {
 
 void setupAutomatik(void) {
   int menuitem;
-  int menuitem_used = 6;  //A.P.
+  int menuitem_used     = 6;
   int lastautostart     = autostart;
   int lastglastoleranz  = glastoleranz;
   int lastautokorrektur = autokorrektur;
   int lastkulanz        = kulanz_gr;
-  int korrektur_alt = korrektur;
-  int lastintGewicht = intGewicht; //A.P.
-  bool wert_aendern = false;
+  int korrektur_alt     = korrektur;
+  int lastintGewicht    = intGewicht;
+  bool wert_aendern     = false;
   #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
     int y_offset = 8;
   #endif
@@ -1685,13 +1685,13 @@ void setupAutomatik(void) {
     bool change = false;
     int wert_old = -1;
     int MenuepunkteAnzahl = 7;
-    const char *menuepunkte[MenuepunkteAnzahl] = {SA_MI01, SA_MI02, SA_MI03, SA_MI04, SA_MI05, SA_MI06, SA_MI07};
+    const char *menuepunkte[MenuepunkteAnzahl] = {AUTOSTART, JAR_TOLERANCE, CORRECTION, AUTOCORRECTION, KINDNESS, FLOW_G_OVER_TIME, SAVE};
     gfx->fillScreen(BACKGROUND);
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
-    int x_pos = CenterPosX(SA_TO01, 14, 320);
+    int x_pos = CenterPosX(AUTOMATIC, 14, 320);
     gfx->setCursor(x_pos, 25);
-    gfx->println(SA_TO01);
+    gfx->println(AUTOMATIC);
     gfx->drawLine(0, 30, 320, 30, TEXT);
   #endif
   initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
@@ -1706,7 +1706,7 @@ void setupAutomatik(void) {
       kulanz_gr     = lastkulanz;
       glastoleranz  = lastglastoleranz;
       korrektur     = korrektur_alt;
-      intGewicht    = lastintGewicht; //A.P.
+      intGewicht    = lastintGewicht;
       setRotariesValue(SW_KORREKTUR, korrektur_alt);
       rotary_select = SW_MENU;
       modus = -1;
@@ -1718,7 +1718,7 @@ void setupAutomatik(void) {
         pos = menuitem;
       #endif
       if (menuitem == menuitem_used) {
-        menuitem = 7;  //A.P.
+        menuitem = 7;
       }
     }
     else {
@@ -1733,20 +1733,20 @@ void setupAutomatik(void) {
                 break;
         case 4: kulanz_gr     = getRotariesValue(SW_MENU);
                 break;
-        case 5: intGewicht    = getRotariesValue(SW_MENU);  //A.P.
-                break; //A.P.
+        case 5: intGewicht    = getRotariesValue(SW_MENU);
+                break;
       }
     }
     #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
       u8g2.setFont(u8g2_font_courB08_tf);
       u8g2.clearBuffer();
       u8g2.setCursor(10, 1 * y_offset);
-      u8g2.print(SA_MI01);
+      u8g2.print(AUTOSTART);
       u8g2.setCursor(95, 1 * y_offset);
-      sprintf(ausgabe,"%5s", (autostart==0?AUS:EIN));
+      sprintf(ausgabe,"%5s", (autostart==0?OFF:ON));
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 2 * y_offset);
-      u8g2.print(SA_MI02);
+      u8g2.print(JAR_TOLERANCE);
       u8g2.setCursor(95, 2 * y_offset);
       if (glastoleranz > 0) {
         if (glastoleranz > 9) {
@@ -1761,32 +1761,32 @@ void setupAutomatik(void) {
       }
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 3 * y_offset);
-      u8g2.print(SA_MI03);
+      u8g2.print(CORRECTION);
       u8g2.setCursor(95, 3 * y_offset);
       sprintf(ausgabe,"%4dg", korrektur);
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 4 * y_offset);
-      u8g2.print(SA_MI04);
+      u8g2.print(AUTOCORRECTION);
       u8g2.setCursor(95, 4 * y_offset);
-      sprintf(ausgabe,"%5s", (autokorrektur==0?AUS:EIN));
+      sprintf(ausgabe,"%5s", (autokorrektur==0?OFF:ON));
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 5 * y_offset);
-      u8g2.print(SA_MI05);
+      u8g2.print(KINDNESS);
       u8g2.setCursor(95, 5 * y_offset);
       sprintf(ausgabe,"%4dg", kulanz_gr);
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 6 * y_offset);
-      u8g2.print(SA_MI06);
+      u8g2.print(FLOW_G_OVER_TIME);
       u8g2.setCursor(95, 6 * y_offset);
       if (intGewicht > 0) {
         sprintf(ausgabe,"%4dg", intGewicht);
       }
       else {
-        sprintf(ausgabe,"%5s", AUS);
+        sprintf(ausgabe,"%5s", OFF);
       }
       u8g2.print(ausgabe);
       u8g2.setCursor(10, (7 * y_offset) + 5);
-      u8g2.print(SA_MI07);
+      u8g2.print(SAVE);
       // Positionsanzeige im Menu. "*" wenn nicht ausgewählt, Pfeil wenn ausgewählt
       if (wert_aendern == false && menuitem < menuitem_used) {
         u8g2.setCursor(1, 10+((menuitem)*y_offset)); u8g2.print("*");
@@ -1813,7 +1813,7 @@ void setupAutomatik(void) {
             gfx->setTextColor(MARKER);
           }
           switch (j) {
-            case 0: sprintf(ausgabe,"%s", autostart==false?AUS:EIN);
+            case 0: sprintf(ausgabe,"%s", autostart==false?OFF:ON);
                     if (wert_old != autostart and wert_aendern == true and j == pos) {
                       change = true;
                       wert_old = autostart;
@@ -1836,7 +1836,7 @@ void setupAutomatik(void) {
                       wert_old = korrektur;
                     }
                     break;
-            case 3: sprintf(ausgabe,"%s", autokorrektur==false?AUS:EIN);
+            case 3: sprintf(ausgabe,"%s", autokorrektur==false?OFF:ON);
                     if (wert_old != autokorrektur and wert_aendern == true and j == pos) {
                       change = true;
                       wert_old = autokorrektur;
@@ -1852,7 +1852,7 @@ void setupAutomatik(void) {
                       sprintf(ausgabe,"%dg", intGewicht);
                     }
                     else {
-                      sprintf(ausgabe,"%s", AUS);
+                      sprintf(ausgabe,"%s", OFF);
                     }
                     if (wert_old != intGewicht and wert_aendern == true and j == pos) {
                       change = true;
@@ -1895,9 +1895,9 @@ void setupAutomatik(void) {
         case 4: rotary_select = SW_MENU;
                 initRotaries(SW_MENU, kulanz_gr, 0, 99, 1);
                 break;
-        case 5: rotary_select = SW_MENU; //A.P.
-                initRotaries(SW_MENU, intGewicht, 0, 99, 1); //A.P.
-                break; //a.P.
+        case 5: rotary_select = SW_MENU;
+                initRotaries(SW_MENU, intGewicht, 0, 99, 1);
+                break;
       }
       #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
         wert_old = -1;
@@ -1914,7 +1914,7 @@ void setupAutomatik(void) {
       wert_aendern = false;
     }
     // Menu verlassen 
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem == 7) {  //A.P.
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem == 7) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
@@ -1942,9 +1942,9 @@ void setupFuellmenge(void) {
     gfx->fillScreen(BACKGROUND);
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
-    int x_pos = CenterPosX(SF_TO01, 14, 320);
+    int x_pos = CenterPosX(FILL_QUANTITY_JARS, 14, 320);
     gfx->setCursor(x_pos, 25);
-    gfx->println(SF_TO01);
+    gfx->println(FILL_QUANTITY_JARS);
     gfx->drawLine(0, 30, 320, 30, TEXT);
   #endif
   int j;
@@ -2169,7 +2169,7 @@ void setupParameter(void) {
     bool change_marker = true;
     menuitem_used = 6;
     int MenuepunkteAnzahl = 7;
-    const char *menuepunkte[MenuepunkteAnzahl] = {SP_MI01, SP_MI02, SP_MI03, SP_MI04, SP_MI05, SP_MI06, SP_MI07};
+    const char *menuepunkte[MenuepunkteAnzahl] = {BUZZER, LED, SHOW_LOGO, SHOW_CREDITS, COLORSCHEME, MARKER_COLOR, SAVE};
   #endif
   initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
   i = 1;
@@ -2217,27 +2217,27 @@ void setupParameter(void) {
       u8g2.setFont(u8g2_font_courB08_tf);
       u8g2.clearBuffer();
       u8g2.setCursor(10, 1 * y_offset);
-      u8g2.print(SP_MI01);
+      u8g2.print(BUZZER);
       u8g2.setCursor(95, 1 * y_offset);
-      sprintf(ausgabe,"%5s", (buzzermode==0?AUS:EIN));
+      sprintf(ausgabe,"%5s", (buzzermode==0?OFF:ON));
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 2 * y_offset);
-      u8g2.print(SP_MI02);
+      u8g2.print(LED);
       u8g2.setCursor(95, 2 * y_offset);
-      sprintf(ausgabe,"%5s", (ledmode==0?AUS:EIN));
+      sprintf(ausgabe,"%5s", (ledmode==0?OFF:ON));
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 3 * y_offset);
-      u8g2.print(SP_MI03);
+      u8g2.print(SHOW_LOGO);
       u8g2.setCursor(95, 3 * y_offset);
-      sprintf(ausgabe,"%5s", (showlogo==0?AUS:EIN));
+      sprintf(ausgabe,"%5s", (showlogo==0?OFF:ON));
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 4 * y_offset);
-      u8g2.print(SP_MI04);
+      u8g2.print(SHOW_CREDITS);
       u8g2.setCursor(95, 4 * y_offset);
-      sprintf(ausgabe,"%5s", (showcredits==0?AUS:EIN));
+      sprintf(ausgabe,"%5s", (showcredits==0?OFF:ON));
       u8g2.print(ausgabe);
       u8g2.setCursor(10, (7 * y_offset) + 5);
-      u8g2.print(SP_MI07);
+      u8g2.print(SAVE);
       // Positionsanzeige im Menu. "*" wenn nicht ausgewählt, Pfeil wenn ausgewählt
       if (wert_aendern == false && menuitem < menuitem_used) {
         u8g2.setCursor(1, 10+((menuitem)*y_offset)); u8g2.print("*");
@@ -2255,9 +2255,9 @@ void setupParameter(void) {
         gfx->fillScreen(BACKGROUND);
         gfx->setTextColor(TEXT);
         gfx->setFont(Punk_Mono_Bold_240_150);
-        int x_pos = CenterPosX(SP_TO01, 14, 320);
+        int x_pos = CenterPosX(PARAMETER, 14, 320);
         gfx->setCursor(x_pos, 25);
-        gfx->println(SP_TO01);
+        gfx->println(PARAMETER);
         gfx->drawLine(0, 30, 320, 30, TEXT);
         change_scheme = false;
         change_marker = true;
@@ -2275,31 +2275,31 @@ void setupParameter(void) {
             gfx->setTextColor(MARKER);
           }
           switch (j) {
-            case 0: sprintf(ausgabe,"%s", buzzermode==false?AUS:EIN);
+            case 0: sprintf(ausgabe,"%s", buzzermode==false?OFF:ON);
                     if (wert_old != buzzermode and wert_aendern == true and j == pos) {
                       change = true;
                       wert_old = buzzermode;
                     }
                     break;
-            case 1: sprintf(ausgabe,"%s", ledmode==false?AUS:EIN);
+            case 1: sprintf(ausgabe,"%s", ledmode==false?OFF:ON);
                     if (wert_old != ledmode and wert_aendern == true and j == pos) {
                       change = true;
                       wert_old = ledmode;
                     }
                     break;
-            case 2: sprintf(ausgabe,"%s", showlogo==false?AUS:EIN);
+            case 2: sprintf(ausgabe,"%s", showlogo==false?OFF:ON);
                     if (wert_old != showlogo and wert_aendern == true and j == pos) {
                       change = true;
                       wert_old = showlogo;
                     }
                     break;
-            case 3: sprintf(ausgabe,"%s", showcredits==false?AUS:EIN);
+            case 3: sprintf(ausgabe,"%s", showcredits==false?OFF:ON);
                     if (wert_old != showcredits and wert_aendern == true and j == pos) {
                       change = true;
                       wert_old = showcredits;
                     }
                     break;
-            case 4: sprintf(ausgabe,"%s", color_scheme==false?DUNKEL:HELL);
+            case 4: sprintf(ausgabe,"%s", color_scheme==false?DARK:LIGHT);
                     if (wert_old != color_scheme and wert_aendern == true and j == pos) {
                       change = true;
                       change_scheme = true;
@@ -2398,12 +2398,12 @@ void setupClearPrefs(void) {
     int y_offset_tft = 28;
     gfx->fillScreen(BACKGROUND);
     int MenuepunkteAnzahl = 3;
-    const char *menuepunkte[MenuepunkteAnzahl - 1] = {CP_MI01, CP_MI02, ZURUECK};
+    const char *menuepunkte[MenuepunkteAnzahl - 1] = {CLEAR_PREFERENCES, CLEAR_NVS_MEMORY, BACK};
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
-    x_pos = CenterPosX(CP_TO01, 14, 320);
+    x_pos = CenterPosX(CLEAR_PREFERENCES, 14, 320);
     gfx->setCursor(x_pos, 25);
-    gfx->println(CP_TO01);
+    gfx->println(CLEAR_PREFERENCES);
     gfx->drawLine(0, 30, 320, 30, TEXT);
   #endif
   i = 1;
@@ -2420,11 +2420,11 @@ void setupClearPrefs(void) {
       u8g2.setFont(u8g2_font_courB08_tf);
       u8g2.clearBuffer();
       u8g2.setCursor(10, 1 * y_offset);
-      u8g2.print(CP_MI01);
+      u8g2.print(CLEAR_PREFERENCES);
       u8g2.setCursor(10, 2 * y_offset);
-      u8g2.print(CP_MI02);
+      u8g2.print(CLEAR_NVS_MEMORY);
       u8g2.setCursor(10, (7 * y_offset) + 5);
-      u8g2.print(ZURUECK);
+      u8g2.print(BACK);
       if (pos == 2) {
         u8g2.setCursor(0, (7 * y_offset) + 7);
       }
@@ -2495,7 +2495,7 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
   bool wert_aendern = false;
   int menuitem_used           = 2;
   String kalibration_status   = START;
-  String quetschhan           = ZU;
+  String quetschhan           = CLOSE;
   bool cal_done = false;
   int cal_winkel = 0;
   int j = 0;
@@ -2508,14 +2508,14 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
     bool change = false;
     int wert_old = -1;
     int MenuepunkteAnzahl = 3;
-    const char *menuepunkte_1[MenuepunkteAnzahl] = {SI_MI01, SI_MI02, SI_MI04};
-    const char *menuepunkte_2[MenuepunkteAnzahl] = {SI_MI01, SI_MI03, SI_MI04};
+    const char *menuepunkte_1[MenuepunkteAnzahl] = {SERVO_CURRENT, CAL_HONEY_GATE, SAVE};
+    const char *menuepunkte_2[MenuepunkteAnzahl] = {SERVO_CURRENT, SHOW_CURRENT, SAVE};
     gfx->fillScreen(BACKGROUND);
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
-    int x_pos = CenterPosX(SI_TO01, 14, 320);
+    int x_pos = CenterPosX(INA219_SETUP, 14, 320);
     gfx->setCursor(x_pos, 25);
-    gfx->println(SI_TO01);
+    gfx->println(INA219_SETUP);
     gfx->drawLine(0, 30, 320, 30, TEXT);
   #endif
   initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
@@ -2563,30 +2563,30 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
       u8g2.setFont(u8g2_font_courB08_tf);
       u8g2.clearBuffer();
       u8g2.setCursor(10, 1 * y_offset);
-      u8g2.print(SI_MI01);
+      u8g2.print(SERVO_CURRENT);
       u8g2.setCursor(90, 1 * y_offset);
       if (current_servo > 0) {
         sprintf(ausgabe,"%4dmA", (current_servo));
       }
       else {
-        sprintf(ausgabe,"%6s", (AUS));
+        sprintf(ausgabe,"%6s", (OFF));
       }
       u8g2.print(ausgabe);
       if (current_servo > 0) {
         u8g2.setCursor(10, 2 * y_offset);
-        u8g2.print(SI_MI02);
+        u8g2.print(CAL_HONEY_GATE);
         menuitem_used = 2;
       }
       else {
         u8g2.setCursor(10, 2 * y_offset);
-        u8g2.print(SI_MI03);
+        u8g2.print(SHOW_CURRENT);
         u8g2.setCursor(90, 2 * y_offset);
-        sprintf(ausgabe,"%6s", (show_current==0?AUS:EIN));
+        sprintf(ausgabe,"%6s", (show_current==0?OFF:ON));
         u8g2.print(ausgabe);
         menuitem_used = 2;
       }
       u8g2.setCursor(10, (7 * y_offset) + 5);
-      u8g2.print(SI_MI04);
+      u8g2.print(SAVE);
       // Positionsanzeige im Menu. "*" wenn nicht ausgewählt, Pfeil wenn ausgewählt
       if (wert_aendern == false && menuitem < menuitem_used) {
         u8g2.setCursor(1, 10+((menuitem)*y_offset)); u8g2.print("*");
@@ -2624,7 +2624,7 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
                       sprintf(ausgabe,"%dmA", current_servo);
                     }
                     else {
-                      sprintf(ausgabe,"%s", AUS);
+                      sprintf(ausgabe,"%s", OFF);
                     }
                     if (wert_old != current_servo and wert_aendern == true and a == pos) {
                       change = true;
@@ -2632,7 +2632,7 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
                     }
                     break;
             case 1: if (current_servo == 0) {
-                      sprintf(ausgabe,"%s", show_current==false?AUS:EIN);
+                      sprintf(ausgabe,"%s", show_current==false?OFF:ON);
                       if (wert_old != show_current and wert_aendern == true and a == pos) {
                         change = true;
                         wert_old = show_current;
@@ -2728,17 +2728,17 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
         u8g2.setCursor(10, 1 * y_offset);
         u8g2.print(kalibration_status);
         u8g2.setCursor(10, 3 * y_offset);
-        u8g2.print(SI_LI01);
+        u8g2.printf("%s:", MAX_CURRENT);
         u8g2.setCursor(90, 3 * y_offset);
         sprintf(ausgabe,"%4imA", current_servo - 30);
         u8g2.print(ausgabe);
         u8g2.setCursor(10, 4 * y_offset);
-        u8g2.print(SI_LI02);
+        u8g2.printf("%s:", MIN_ANGLE);
         u8g2.setCursor(90, 4 * y_offset);
         sprintf(ausgabe,"%5i°", winkel_min);
         u8g2.print(ausgabe);
         u8g2.setCursor(10, (7 * y_offset) + 5);
-        u8g2.print(ZURUECK);
+        u8g2.print(BACK);
         // Positionsanzeige im Menu. "*" wenn nicht ausgewählt, Pfeil wenn ausgewählt
         if (wert_aendern == false && menuitem < menuitem_used && kalibration_status == START) {
           u8g2.setCursor(1, 10+((menuitem)*y_offset)); u8g2.print("*");
@@ -2753,18 +2753,18 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
           gfx->fillScreen(BACKGROUND);
           gfx->setTextColor(TEXT);
           gfx->setFont(Punk_Mono_Bold_240_150);
-          x_pos = CenterPosX(SI_TO01, 14, 320);
+          x_pos = CenterPosX(INA219_SETUP, 14, 320);
           gfx->setCursor(x_pos, 25);
-          gfx->println(SI_TO01);
+          gfx->println(INA219_SETUP);
           gfx->drawLine(0, 30, 320, 30, TEXT);
           gfx->setCursor(5, 30+(3 * y_offset_tft));
-          gfx->print(SI_LI01);
+          gfx->printf("%s:", MAX_CURRENT);
           sprintf(ausgabe,"%4imA", current_servo - 30);
           int y = get_length(ausgabe);
           gfx->setCursor(320 - y * 14 - 5, 30+(3 * y_offset_tft));
           gfx->print(ausgabe);
           gfx->setCursor(5, 30+(4 * y_offset_tft));
-          gfx->print(SI_LI02);
+          gfx->printf("%s:", MIN_ANGLE);
           sprintf(ausgabe,"%3i°", winkel_min);
           y = get_length(ausgabe);
           gfx->setCursor(320 - y * 14 - 5, 30+(4 * y_offset_tft));
@@ -2777,7 +2777,7 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
           gfx->print(kalibration_status);
           gfx->setTextColor(TEXT);
           gfx->setCursor(5, 30+(7 * y_offset_tft));
-          gfx->print(ZURUECK);
+          gfx->print(BACK);
         }
         else {
           gfx->setTextColor(TEXT);
@@ -2785,13 +2785,13 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
           gfx->print(kalibration_status);
           gfx->setTextColor(MARKER);
           gfx->setCursor(5, 30+(7 * y_offset_tft));
-          gfx->print(ZURUECK);
+          gfx->print(BACK);
         }
       #endif
       if (wert_aendern == true && menuitem < menuitem_used) {
         lastcurrent = current_servo;
-        kalibration_status = SI_LI03;
-        quetschhan = ZU;
+        kalibration_status = CALIBRATION_RUNNING;
+        quetschhan = CLOSE;
         cal_done = false;
         cal_winkel = 0;
         k = 1;
@@ -2817,9 +2817,9 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
         }
         #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
           gfx->fillScreen(BACKGROUND);
-          x_pos = CenterPosX(SI_TO01, 14, 320);
+          x_pos = CenterPosX(INA219_SETUP, 14, 320);
           gfx->setCursor(x_pos, 25);
-          gfx->println(SI_TO01);
+          gfx->println(INA219_SETUP);
           gfx->drawLine(0, 30, 320, 30, TEXT);
         #endif
         j = 0;
@@ -2829,7 +2829,7 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
       }
       while (k > 0) {
         SERVO_WRITE(90);
-        quetschhan = OFFEN;
+        quetschhan = OPEN;
         int scaletime = millis();
         bool measurement_run = false;
         while (!cal_done) {
@@ -2839,25 +2839,25 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
             u8g2.setCursor(10, 1 * y_offset);
             u8g2.print(kalibration_status);
             u8g2.setCursor(10, 3 * y_offset);
-            u8g2.print(ABBRECHEN);
+            u8g2.print(ABORT);
             u8g2.setCursor(10, 4 * y_offset);
-            u8g2.print(SI_LI04);
+            u8g2.printf("%s:", CURRENT);
             u8g2.setCursor(90, 4 * y_offset);
             sprintf(ausgabe,"%4imA", current_mA);
             u8g2.print(ausgabe);
             u8g2.setCursor(10, 4 * y_offset);
-            u8g2.print(SI_LI05);
+            u8g2.printf("%s:", ANGLE);
             u8g2.setCursor(90, 4 * y_offset);
             sprintf(ausgabe,"%5i°", cal_winkel);
             u8g2.print(ausgabe);
             u8g2.setCursor(10, 5 * y_offset);
-            u8g2.print(SI_LI06);
+            u8g2.print(HONEY_GATE);
             sprintf(ausgabe,"%6s", quetschhan);
             u8g2.print(ausgabe);
             u8g2.setCursor(1, (7 * y_offset) + 7); 
             u8g2.print("*");
             u8g2.setCursor(10, (7 * y_offset) + 5);
-            u8g2.print(ABBRECHEN);
+            u8g2.print(ABORT);
             u8g2.sendBuffer();
           #endif
           #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -2865,9 +2865,9 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
               gfx->fillScreen(BACKGROUND);
               gfx->setTextColor(TEXT);
               gfx->setFont(Punk_Mono_Bold_240_150);
-              x_pos = CenterPosX(SI_TO01, 14, 320);
+              x_pos = CenterPosX(INA219_SETUP, 14, 320);
               gfx->setCursor(x_pos, 25);
-              gfx->println(SI_TO01);
+              gfx->println(INA219_SETUP);
               gfx->drawLine(0, 30, 320, 30, TEXT);
               gfx->setCursor(5, 30+(3 * y_offset_tft));
               change = true;
@@ -2879,32 +2879,32 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
               gfx->print(kalibration_status);
               gfx->fillRect(205, 27+(3 * y_offset_tft)-19, 110, 3 * y_offset_tft, BACKGROUND);
               gfx->setCursor(5, 30+(3 * y_offset_tft));
-              gfx->print(SI_LI04);
+              gfx->printf("%s:", CURRENT);
               sprintf(ausgabe,"%4imA", current_mA);
               int y = get_length(ausgabe);
               gfx->setCursor(320 - y * 14 - 5, 30+(3 * y_offset_tft));
               gfx->print(ausgabe);
               gfx->setCursor(5, 30+(4 * y_offset_tft));
-              gfx->print(SI_LI05);
+              gfx->printf("%s:", ANGLE);
               sprintf(ausgabe,"%3i°", cal_winkel);
               y = get_length(ausgabe);
               gfx->setCursor(320 - y * 14 - 5, 30+(4 * y_offset_tft));
               gfx->print(ausgabe);
               gfx->setCursor(5, 30+(5 * y_offset_tft));
-              gfx->print(SI_LI06);
+              gfx->print(HONEY_GATE);
               sprintf(ausgabe,"%5s", quetschhan);
               y = get_length(ausgabe);
               gfx->setCursor(320 - y * 14 - 5, 30+(5 * y_offset_tft));
               gfx->print(ausgabe);
               gfx->setTextColor(MARKER);
               gfx->setCursor(5, 30+(7 * y_offset_tft));
-              gfx->print(ABBRECHEN);
+              gfx->print(ABORT);
               change = false;
             }
           #endif
           if (millis() - scaletime >= 800 and !measurement_run) {
             SERVO_WRITE(cal_winkel);
-            quetschhan = ZU;
+            quetschhan = CLOSE;
             measurement_run = true;
             scaletime = millis();
             #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -2915,7 +2915,7 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
             current_mA = GetCurrent(50);
             if (current_mA > current_servo - 30) {   //30mA unter dem max. Wert Kalibrieren
               SERVO_WRITE(90);
-              quetschhan = OFFEN;
+              quetschhan = OPEN;
               cal_winkel++;
               #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
                 change = true;
@@ -2923,7 +2923,7 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
             }
             else {
               cal_done = true;
-              kalibration_status = SI_LI07;
+              kalibration_status = CALIBRATION_DONE;
               winkel_min = cal_winkel;
               k++;
             }
@@ -2938,9 +2938,9 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
             #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
               gfx->fillScreen(BACKGROUND);
               gfx->setTextColor(TEXT);
-              x_pos = CenterPosX(SI_TO01, 14, 320);
+              x_pos = CenterPosX(INA219_SETUP, 14, 320);
               gfx->setCursor(x_pos, 25);
-              gfx->println(SI_TO01);
+              gfx->println(INA219_SETUP);
               gfx->drawLine(0, 30, 320, 30, TEXT);
             #endif
             j = 0;
@@ -2966,19 +2966,19 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
             u8g2.setCursor(10, 1 * y_offset);
             u8g2.print(kalibration_status);
             u8g2.setCursor(10, 3 * y_offset);
-            u8g2.print(SI_LI04);
+            u8g2.printf("%s:",CURRENT);
             u8g2.setCursor(90, 3 * y_offset);
             sprintf(ausgabe,"%4imA", current_mA);
             u8g2.print(ausgabe);
             u8g2.setCursor(10, 4 * y_offset);
-            u8g2.print(SI_LI05);
+            u8g2.printf("%s:",ANGLE);
             u8g2.setCursor(90, 4 * y_offset);
             sprintf(ausgabe,"%5i°", winkel_min);
             u8g2.print(ausgabe);
             u8g2.setCursor(1, (7 * y_offset) + 7); 
             u8g2.print("*");
             u8g2.setCursor(10, (7 * y_offset) + 5);
-            u8g2.print(SI_MI04);
+            u8g2.print(SAVE);
             u8g2.sendBuffer();
           #endif
           #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -2991,14 +2991,14 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
               gfx->print(kalibration_status);
               gfx->setTextColor(MARKER);
               gfx->setCursor(5, 30+(7 * y_offset_tft));
-              gfx->print(SI_MI04);
+              gfx->print(SAVE);
               gfx->setTextColor(TEXT);
               k++;
             }
             if (change) {
               gfx->fillRect(200, 27+(3 * y_offset_tft)-19, 120, 25, BACKGROUND);
               gfx->setCursor(5, 30+(3 * y_offset_tft));
-              gfx->print(SI_LI04);
+              gfx->printf("%s:",ANGLE);
               sprintf(ausgabe,"%4imA", current_mA);
               int y = get_length(ausgabe);
               gfx->setCursor(320 - y * 14 - 5, 30+(3 * y_offset_tft));
@@ -3019,9 +3019,9 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
             initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
             #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
               gfx->fillScreen(BACKGROUND);
-              x_pos = CenterPosX(SI_TO01, 14, 320);
+              x_pos = CenterPosX(INA219_SETUP, 14, 320);
               gfx->setCursor(x_pos, 25);
-              gfx->println(SI_TO01);
+              gfx->println(INA219_SETUP);
               gfx->drawLine(0, 30, 320, 30, TEXT);
             #endif
           }
@@ -3050,11 +3050,11 @@ void processSetup(void) {
   int menuitem_old = -1;
   if (ina219_installed) {MenuepunkteAnzahl++;}
   int posmenu[MenuepunkteAnzahl];
-  const char *menuepunkte[MenuepunkteAnzahl] = {PS_MI01,PS_MI02,PS_MI03,PS_MI04,PS_MI05,PS_MI06,PS_MI07,PS_MI08,PS_MI09};
+  const char *menuepunkte[MenuepunkteAnzahl] = {TARAVALUES, CALIBRATION, FILL_QUANTITY, AUTOMATIC, SERVOSETTINGS, PARAMETER, COUNTER, COUNTER_TRIP, CLEAR_PREFS};
   //MenuepunkteAnzahl = sizeof(menuepunkte)/sizeof(menuepunkte[0]);
   if (ina219_installed) {
       menuepunkte[MenuepunkteAnzahl - 1] = menuepunkte[MenuepunkteAnzahl -2];    //Clear Pref eins nach hinten schieben
-      menuepunkte[MenuepunkteAnzahl - 2] = PS_MI10;
+      menuepunkte[MenuepunkteAnzahl - 2] = INA219_SETUP;
   }
   modus = MODE_SETUP;
   winkel = winkel_min;          // Hahn schliessen
@@ -3146,18 +3146,18 @@ void processSetup(void) {
       Serial.println(menuitem);
     #endif
       lastpos = menuitem;
-      if (menuepunkte[menuitem] == PS_MI01)     setupTara();              // Tara 
-      if (menuepunkte[menuitem] == PS_MI02)     setupCalibration();       // Kalibrieren 
-      if (menuepunkte[menuitem] == PS_MI03)     setupFuellmenge();        // Füllmenge 
-      if (menuepunkte[menuitem] == PS_MI04)     setupAutomatik();         // Autostart/Autokorrektur konfigurieren 
-      if (menuepunkte[menuitem] == PS_MI05)     setupServoWinkel();       // Servostellungen Minimum, Maximum und Feindosierung
-      if (menuepunkte[menuitem] == PS_MI06)     setupParameter();         // Sonstige Einstellungen
-      if (menuepunkte[menuitem] == PS_MI07)     setupCounter();           // Zählwerk
-      if (menuepunkte[menuitem] == PS_MI08)     setupTripCounter();       // Zählwerk Trip
-      if (menuepunkte[menuitem] == PS_MI10)     setupINA219();            // INA219 Setup
+      if (menuepunkte[menuitem] == TARAVALUES)        setupTara();              // Tara 
+      if (menuepunkte[menuitem] == CALIBRATION)       setupCalibration();       // Kalibrieren 
+      if (menuepunkte[menuitem] == FILL_QUANTITY)     setupFuellmenge();        // Füllmenge 
+      if (menuepunkte[menuitem] == AUTOMATIC)         setupAutomatik();         // Autostart/Autokorrektur konfigurieren 
+      if (menuepunkte[menuitem] == SERVOSETTINGS)     setupServoWinkel();       // Servostellungen Minimum, Maximum und Feindosierung
+      if (menuepunkte[menuitem] == PARAMETER)         setupParameter();         // Sonstige Einstellungen
+      if (menuepunkte[menuitem] == COUNTER)           setupCounter();           // Zählwerk
+      if (menuepunkte[menuitem] == COUNTER_TRIP)      setupTripCounter();       // Zählwerk Trip
+      if (menuepunkte[menuitem] == INA219_SETUP)      setupINA219();            // INA219 Setup
       setPreferences();
-      if (menuepunkte[menuitem] == PS_MI09)     setupClearPrefs();        // EEPROM löschen
-      initRotaries(SW_MENU,lastpos, 0,255, 1);                            // Menu-Parameter könnten verstellt worden sein
+      if (menuepunkte[menuitem] == CLEAR_PREFS)       setupClearPrefs();        // EEPROM löschen
+      initRotaries(SW_MENU,lastpos, 0,255, 1);                                  // Menu-Parameter könnten verstellt worden sein
     }
     #if OTA == 1
       if (digitalRead(button_start_pin) == HIGH) {
@@ -3214,7 +3214,7 @@ void processAutomatik(void) {
       gfx->drawLine(160, 167, 160, 240, TEXT);
       gfx->setCursor(2, 185);
       gfx->setFont(Punk_Mono_Thin_160_100);
-      gfx->print(AM_LI01);                          //INA219
+      gfx->print(INA219);
       gfx->setFont(Checkbox);
       gfx->setCursor(140, 182);
       if (ina219_installed == 0){
@@ -3228,7 +3228,7 @@ void processAutomatik(void) {
       gfx->setTextColor(TEXT);
       gfx->setCursor(2, 202);
       gfx->setFont(Punk_Mono_Thin_160_100);
-      gfx->print(AM_LI02);                           //Autostart
+      gfx->print(AUTOSTART);
       gfx->setFont(Checkbox);
       gfx->setCursor(140, 199);
       if (autostart == 0){
@@ -3242,7 +3242,7 @@ void processAutomatik(void) {
       gfx->setTextColor(TEXT);
       gfx->setFont(Punk_Mono_Thin_160_100);
       gfx->setCursor(2, 219);
-      gfx->print(AM_LI03);                          //Autokorrektur
+      gfx->print(AUTOCORRECTION);
       gfx->setFont(Checkbox);
       gfx->setCursor(140, 216);
       if (autokorrektur == 0){
@@ -3256,7 +3256,7 @@ void processAutomatik(void) {
       gfx->setTextColor(TEXT);
       gfx->setFont(Punk_Mono_Thin_160_100);
       gfx->setCursor(2, 236);
-      gfx->print(AM_LI14);                          //Fluss g/Zeit
+      gfx->print(FLOW_G_OVER_TIME);
       gfx->setFont(Checkbox);
       gfx->setCursor(140, 233);
       if (intGewicht <= 0){
@@ -3270,20 +3270,20 @@ void processAutomatik(void) {
       gfx->setTextColor(TEXT);
       gfx->setFont(Punk_Mono_Thin_160_100);
       gfx->setCursor(170, 185);
-      gfx->print(AM_LI04);                        //Strom:
+      gfx->printf("%s:", CURRENT);
       gfx->setCursor(170, 202);
-      gfx->print(AM_LI05);                        //Korrektur:
+      gfx->printf("%s:", CORRECTION);
       gfx->setCursor(170, 219);
-      gfx->print(AM_LI06);                        //Autokorr.:
+      gfx->printf("%s:", AUTOCORR);
       gfx->setCursor(170, 236);
-      gfx->print(AM_LI15);                        //Fluss.:
+      gfx->print(FLOW);
       //Display Kopf
       gfx->setCursor(2, 17);
-      gfx->print(AM_LI07);                        //Min:
+      gfx->printf("%s:", MIN);
       gfx->setCursor(119, 17);
-      gfx->print(AM_LI08);                        //Max:
+      gfx->printf("%s:", MAX_2);
       gfx->setCursor(236, 17);
-      gfx->print(AM_LI09);                        //Ist:
+      gfx->printf("%s:", ACT);
       gfx->drawLine(0, 20, 320, 20, TEXT);
     #endif
   }
@@ -3294,7 +3294,7 @@ void processAutomatik(void) {
     setRotariesValue(SW_WINKEL, pos);
   }
   korrektur    = getRotariesValue(SW_KORREKTUR);
-  intGewicht   = getRotariesValue(SW_FLUSS);
+  intGewicht   = getRotariesValue(SW_FLUSS);                                  //da muss noch nen bock drin sein
   fmenge_index = getRotariesValue(SW_MENU);
   fmenge       = glaeser[fmenge_index].Gewicht;
   tara         = glaeser[fmenge_index].Tara;
@@ -3355,7 +3355,7 @@ void processAutomatik(void) {
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_courB24_tf);
       u8g2.setCursor(15, 43);
-      u8g2.print(AM_LI12);            //START
+      u8g2.print(START);
       u8g2.sendBuffer();
     #endif
     #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -3395,7 +3395,7 @@ void processAutomatik(void) {
       gfx->fillRect(80, 24, 240, 80, BACKGROUND);
       gfx->setFont(Punk_Mono_Bold_600_375);
       gfx->setCursor(100, 85);
-      gfx->print(AM_LI12);                      //START
+      gfx->print(START);
     #endif
     // A.P. kurz warten und über 5 Messungen prüfen ob das Gewicht nicht nur eine zufällige Schwankung war 
     int gewicht_Mittel = 0;
@@ -3416,7 +3416,7 @@ void processAutomatik(void) {
       #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
         gfx->fillRect(109, 136, 211, 27, BACKGROUND);
         gfx->setFont(Punk_Mono_Thin_240_150);
-        sprintf(ausgabe, "%s:%dg ", AM_LI13, tara_glas);               //Tara Glas
+        sprintf(ausgabe, "%s:%dg ", TARA_JAR, tara_glas);
         int i = StringLenght(ausgabe);
         gfx->setCursor(320 - 14 * i, 156);
         gfx->print(ausgabe);
@@ -3576,8 +3576,8 @@ void processAutomatik(void) {
       // kein Glas aufgestellt 
       if (gewicht < -20) {
         u8g2.setFont(u8g2_font_courB10_tf);
-        u8g2.setCursor(37, 31 + y_offset); u8g2.print(AM_LI10);       //Bitte Glass
-        u8g2.setCursor(37, 43 + y_offset); u8g2.print(AM_LI11);       //aufstellen
+        u8g2.setCursor(37, 31 + y_offset); u8g2.print(PLEASE_PUT);
+        u8g2.setCursor(37, 43 + y_offset); u8g2.print(UP_THE_JAR);
       } 
       else {
         if(autostart == 1 && auto_aktiv == 1 && servo_aktiv == 0 && gewicht >= -5 && gewicht - tara_glas < fmenge) {
@@ -3593,9 +3593,9 @@ void processAutomatik(void) {
     } 
     else {
       u8g2.setFont(u8g2_font_courB14_tf);
-      int y = get_length(AM_ER01);
+      int y = get_length(NO_TARA);
       u8g2.setCursor(128 - y * 10 -5, 38 + y_offset);
-      sprintf(ausgabe,"%6s", AM_ER01);                    //kein Tara
+      sprintf(ausgabe,"%6s", NO_TARA);                    //kein Tara
       u8g2.print(ausgabe);
     }
     // Play/Pause Icon, ob die Automatik aktiv ist
@@ -3604,7 +3604,7 @@ void processAutomatik(void) {
     u8g2.setFont(u8g2_font_courB08_tf);
     // Zeile oben, Öffnungswinkel absolut und Prozent, Anzeige Autostart
     u8g2.setCursor(1, 9);
-    sprintf(ausgabe,"%s=%-3d", AM_LI16, winkel);
+    sprintf(ausgabe,"%s=%-3d", A_UPPER_CASE, winkel);
     u8g2.print(ausgabe);
     n = StringLenght(ausgabe);
     u8g2.setCursor(n * 6 + 1, 9);
@@ -3612,13 +3612,13 @@ void processAutomatik(void) {
     sprintf(ausgabe,"%3d%%", pos);
     u8g2.setCursor(104, 9);
     u8g2.print(ausgabe);
-    sprintf(ausgabe,"%2s", (autostart==1)?AM_LI17:" ");
+    sprintf(ausgabe,"%2s", (autostart==1)?AS:" ");
     u8g2.setCursor(58, 9);
     u8g2.print(ausgabe);
     //INA219 Display
     if (ina219_installed and (current_servo > 0 or show_current == 1)) {
       u8g2.setCursor(0, 18);
-      sprintf(ausgabe, AM_LI18);
+      sprintf(ausgabe, "%s:", SERVO_CURRENT);
       u8g2.print(ausgabe);
       sprintf(ausgabe, "%4imA", current_mA);
       u8g2.setCursor(128 - 36, 18);
@@ -3634,7 +3634,7 @@ void processAutomatik(void) {
     } 
     else {
       u8g2.setFont(u8g2_font_courB08_tf);
-      sprintf(ausgabe, "%s%s=%-3d" ,(autokorrektur==1)?AM_LI19:"", AM_LI20 , korrektur + autokorrektur_gr);
+      sprintf(ausgabe, "%s%s=%-3d" ,(autokorrektur==1)?A_LOWER_CASE:"", C_LOWER_CASE , korrektur + autokorrektur_gr);
       n = StringLenght(ausgabe);
       if (rotary_select == SW_KORREKTUR) {
         u8g2.setCursor(10, 62);
@@ -3647,7 +3647,7 @@ void processAutomatik(void) {
         u8g2.setCursor(0, 62);
       }
       u8g2.print(ausgabe);
-      sprintf(ausgabe, "%s=%-3d" ,AM_LI21, intGewicht);
+      sprintf(ausgabe, "%s=%-3d" ,F_LOWER_CASE, intGewicht);
       n = StringLenght(ausgabe);
       if (rotary_select == SW_FLUSS) {
         u8g2.setCursor(10, 54);
@@ -3705,7 +3705,7 @@ void processAutomatik(void) {
       gfx->setTextColor(TEXT);
       gfx->setFont(Punk_Mono_Thin_160_100);
       gfx->setCursor(265, 185);
-      sprintf(ausgabe, "%6s", AUS);
+      sprintf(ausgabe, "%6s", OFF);
       gfx->print(ausgabe);
     }
     else if (ina219_installed == 0 and no_ina == 0) {
@@ -3869,9 +3869,9 @@ void processAutomatik(void) {
         gfx->fillRect(80, 24, 240, 80, BACKGROUND);
         gfx->setFont(Punk_Mono_Bold_320_200);
         gfx->setCursor(120, 58);
-        gfx->print(AM_LI10);                         //Bitte Glas
+        gfx->print(PLEASE_PUT);
         gfx->setCursor(120, 90);
-        gfx->print(AM_LI11);                         //aufstellen
+        gfx->print(UP_THE_JAR);
         glas_alt = -1;
       } 
       else if (gewicht != gewicht_alt) {
@@ -3905,7 +3905,7 @@ void processAutomatik(void) {
       gfx->setTextColor(RED);
       gfx->setFont(Punk_Mono_Bold_320_200);
       gfx->setCursor(120, 74);
-      gfx->print(AM_ER01);                 //kein Tara
+      gfx->print(NO_TARA);                 //kein Tara
       gfx->setTextColor(TEXT);
       gewicht_alt = gewicht;
     }
@@ -3951,29 +3951,29 @@ void processHandbetrieb(void) {
       gfx->fillScreen(BACKGROUND);
       gfx->setTextColor(TEXT);
       gfx->setFont(Punk_Mono_Bold_320_200);
-      sprintf(ausgabe,MM_TO01);                       //Manuell
+      sprintf(ausgabe,MANUAL);
       x_pos = CenterPosX(ausgabe, 18, 320);
       gfx->setCursor(x_pos, 27);
       gfx->print(ausgabe);
       gfx->drawLine(0, 30, 320, 30, TEXT);
       gfx->setFont(Punk_Mono_Bold_200_125);
       gfx->setCursor(5, 192);
-      gfx->print(MM_LI01);                           //Servo
+      gfx->printf("%s:", SERVO);
       gfx->drawLine(0, 170, 320, 170, TEXT);
       gfx->drawLine(160, 170, 160, 240, TEXT);
       gfx->setCursor(170, 192);
-      gfx->print(MM_LI02);                           //Tara
+      gfx->printf("%s:", TARA);
       if (ina219_installed == 1) {
         gfx->setCursor(170, 215);
-        sprintf(ausgabe, MM_LI03);                   //INA
+        sprintf(ausgabe,"%s:",INA);
         gfx->print(ausgabe);
-        sprintf(ausgabe, "%s", (current_servo==0?AUS:EIN));
+        sprintf(ausgabe, "%s", (current_servo==0?OFF:ON));
         int y = get_length(ausgabe);
         gfx->setCursor(320 - y * 12 - 5, 215);
         gfx->print(ausgabe);
         if (ina219_installed == 1 and current_mA != current_mA_alt and (current_servo > 0 or show_current == 1)) {
           gfx->setCursor(170, 238);
-          gfx->print(MM_LI04);                       //Strom
+          gfx->printf("%s:", CURR);
         }
       }
     #endif
@@ -4021,25 +4021,25 @@ void processHandbetrieb(void) {
     u8g2.setFont(u8g2_font_courB08_tf);
     u8g2.setCursor(0, 11);
     u8g2.setCursor(1, 9);
-    sprintf(ausgabe,"%s=%d°", MM_LI07, winkel);
+    sprintf(ausgabe,"%s=%d°", A_UPPER_CASE, winkel);
     u8g2.print(ausgabe);
     sprintf(ausgabe,"%3d%%", pos);
     u8g2.setCursor(104, 9);
     u8g2.print(ausgabe);
     if (ina219_installed and (current_servo > 0 or show_current == 1)) {
       u8g2.setCursor(0, 18);
-      sprintf(ausgabe,MM_LI08);                   //Servo Strom
+      sprintf(ausgabe,"%s:", SERVO_CURRENT);
       u8g2.print(ausgabe);
       sprintf(ausgabe, "%4imA", current_mA);
       u8g2.setCursor(128 - 36, 18);
       u8g2.print(ausgabe);
     }
     u8g2.setCursor(0, 64);
-    u8g2.print(MM_TO01);
+    u8g2.print(MANUAL);
     if (tara > 0) {
-      int y = get_length(MM_LI09);
+      int y = get_length(TARA);
       u8g2.setCursor(128 - y * 6, 64);
-      u8g2.print(MM_LI09);
+      u8g2.print(TARA);
     }
     u8g2.sendBuffer();
   #endif
@@ -4057,7 +4057,7 @@ void processHandbetrieb(void) {
       gfx->fillRect(97, 198, 50, 20, BACKGROUND);
       gfx->setFont(Punk_Mono_Bold_200_125);
       gfx->setCursor(5, 215);
-      gfx->print(MM_LI06);
+      gfx->printf("%s:", ACTUAL);
       sprintf(ausgabe, "%3i°", winkel);
       int y = get_length(ausgabe);
       gfx->setCursor(160 - y * 12 - 11, 215);
@@ -4068,7 +4068,7 @@ void processHandbetrieb(void) {
       gfx->fillRect(97, 221, 50, 20, BACKGROUND);
       gfx->setFont(Punk_Mono_Bold_200_125);
       gfx->setCursor(5, 238);
-      gfx->print(MM_LI05);
+      gfx->printf("%s:", MAX_1);
       sprintf(ausgabe, "%3i°", winkel_max*pos/100);
       int y = get_length(ausgabe);
       gfx->setCursor(160 - y * 12 - 11, 238);
@@ -4228,10 +4228,10 @@ void setup() {
         u8g2.clearBuffer();
         //u8g2.setFont(u8g2_font_courB18_tf);
         u8g2.setFont(u8g2_font_courB12_tf);
-        sprintf(ausgabe,ER_LI11);
+        sprintf(ausgabe,NOT);
         x_pos = CenterPosX(ausgabe, 10, 128);
         u8g2.setCursor(x_pos, 30); u8g2.print(ausgabe);
-        sprintf(ausgabe,ER_LI12);
+        sprintf(ausgabe,CALIBRATED);
         x_pos = CenterPosX(ausgabe, 10, 128);
         u8g2.setCursor(x_pos, 46); u8g2.print(ausgabe);
         u8g2.sendBuffer();
@@ -4240,11 +4240,11 @@ void setup() {
         gfx->fillScreen(BACKGROUND);
         gfx->setTextColor(RED);
         gfx->setFont(Punk_Mono_Bold_320_200);
-        sprintf(ausgabe,ER_LI11);
+        sprintf(ausgabe,NOT);
         x_pos = CenterPosX(ausgabe, 18, 320);
         gfx->setCursor(x_pos, 110);
         gfx->print(ausgabe);
-        sprintf(ausgabe,ER_LI12);
+        sprintf(ausgabe,CALIBRATED);
         x_pos = CenterPosX(ausgabe, 18, 320);
         gfx->setCursor(x_pos, 154);
         gfx->print(ausgabe);
@@ -4267,10 +4267,10 @@ void setup() {
     #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
       u8g2.clearBuffer();
       u8g2.setFont(u8g2_font_courB24_tf);
-      sprintf(ausgabe,ER_LI01);
+      sprintf(ausgabe,NO);
       x_pos = CenterPosX(ausgabe, 20, 128);
       u8g2.setCursor( x_pos, 24); u8g2.print(ausgabe);
-      sprintf(ausgabe,ER_LI02);
+      sprintf(ausgabe,SCALE);
       x_pos = CenterPosX(ausgabe, 20, 128);
       u8g2.setCursor( x_pos, 56);  u8g2.print(ausgabe);
       u8g2.sendBuffer();
@@ -4279,11 +4279,11 @@ void setup() {
       gfx->fillScreen(BACKGROUND);
       gfx->setTextColor(RED);
       gfx->setFont(Punk_Mono_Bold_320_200);
-      sprintf(ausgabe,ER_LI01);
+      sprintf(ausgabe,NO);
       x_pos = CenterPosX(ausgabe, 18, 320);
       gfx->setCursor(x_pos, 110);
       gfx->print(ausgabe);
-      sprintf(ausgabe,ER_LI02);
+      sprintf(ausgabe,SCALE);
       x_pos = CenterPosX(ausgabe, 18, 320);
       gfx->setCursor(x_pos, 154);
       gfx->print(ausgabe);
@@ -4311,10 +4311,10 @@ void setup() {
       #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
         u8g2.clearBuffer();
         u8g2.setFont(u8g2_font_courB14_tf);
-        sprintf(ausgabe,ER_LI21);
+        sprintf(ausgabe,EMPTY);
         x_pos = CenterPosX(ausgabe, 11, 128);
         u8g2.setCursor( x_pos, 28); u8g2.print(ausgabe);
-        sprintf(ausgabe,ER_LI22);
+        sprintf(ausgabe,THE_SCALE);
         x_pos = CenterPosX(ausgabe, 11, 128);
         u8g2.setCursor(x_pos, 52); u8g2.print(ausgabe);
         u8g2.sendBuffer();
@@ -4323,11 +4323,11 @@ void setup() {
         gfx->fillScreen(BACKGROUND);
         gfx->setTextColor(RED);
         gfx->setFont(Punk_Mono_Bold_320_200);
-        sprintf(ausgabe,ER_LI21);
+        sprintf(ausgabe,EMPTY);
         x_pos = CenterPosX(ausgabe, 18, 320);
         gfx->setCursor(x_pos, 110);
         gfx->print(ausgabe);
-        sprintf(ausgabe,ER_LI22);
+        sprintf(ausgabe,THE_SCALE);
         x_pos = CenterPosX(ausgabe, 18, 320);
         gfx->setCursor(x_pos, 154);
         gfx->print(ausgabe);
