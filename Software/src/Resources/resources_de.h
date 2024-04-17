@@ -1,5 +1,5 @@
 //Process Setup
-char TARAVALUES[]           = "Tarawerte";
+char TAREVALUES[]           = "Tarawerte";
 char CALIBRATION[]          = "Kalibrieren";
 char FILL_QUANTITY[]        = "Füllmenge";
 char AUTOMATIC[]            = "Automatik";
@@ -10,8 +10,8 @@ char COUNTER_TRIP[]         = "ZählwerkTrip";
 char CLEAR_PREFS[]          = "Clear Prefs";
 char INA219_SETUP[]         = "INA219 Setup";
 
-//Setup Taravalues
-char TARAVALUES_JAR[]       = "Tarawerte Gläser";
+//Setup Tarevalues
+char TAREVALUES_JAR[]       = "Tarawerte Gläser";
 char MISSING[]              = "fehlt";
 
 //Setup Calibration
@@ -74,7 +74,7 @@ char THE_SCALE[]            = "leeren!";
 //Manual Modus
 char MANUAL[]               = "Manuell";
 char SERVO[]                = "Servo";
-char TARA[]                 = "Tara";
+char TARE[]                 = "Tara";
 char INA[]                  = "INA";
 char CURR[]                 = "Strom";
 char MAX_1[]                = "max";
@@ -89,14 +89,14 @@ char MAX_2[]                = "Max";
 char ACT[]                  = "Ist";
 char PLEASE_PUT[]           = "Bitte Glas";
 char UP_THE_JAR[]           = "aufstellen";
-char TARA_JAR[]             = "Tara Glas";
+char TARE_JAR[]             = "Tara Glas";
 char FLOW[]                 = "Fluss";
 char AS[]                   = "AS";
 char A_LOWER_CASE[]         = "a";
 char C_LOWER_CASE[]         = "k";
 char F_LOWER_CASE[]         = "f";
 
-char NO_TARA[]              = "kein Tara!";
+char NO_TARE[]              = "kein Tara!";
 
 char OFF[]                  = "aus";
 char ON[]                   = "ein";

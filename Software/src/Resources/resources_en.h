@@ -1,5 +1,5 @@
 //Process Setup
-char TARAVALUES[]			= "Taravalues";
+char TAREVALUES[]			= "Tarevalues";
 char CALIBRATION[]			= "Calibration";
 char FILL_QUANTITY[]		= "Fill quantity";
 char AUTOMATIC[]			= "Automatic";
@@ -10,8 +10,8 @@ char COUNTER_TRIP[]			= "CounterTrip";
 char CLEAR_PREFS[]			= "Clear Prefs";
 char INA219_SETUP[]			= "INA219 Setup";
 
-//Setup Taravalues
-char TARAVALUES_JAR[]		= "Taravalues jars";			//DISPLAY:	Taravalues jars
+//Setup Tarevalues
+char TAREVALUES_JAR[]		= "Tarevalues jars";			//DISPLAY:	Tarevalues jars
 char MISSING[]				= "missing";					//			missing
 
 //Setup Calibration
@@ -74,7 +74,7 @@ char THE_SCALE[]			= "the scale!";					//			the scale!
 //Manual Modus
 char MANUAL[]				= "Manual";
 char SERVO[]				= "Servo";
-char TARA[]					= "Tara";
+char TARE[]					= "Tare";
 char INA[]					= "INA";
 char CURR[]					= "Curr.";                      //Current
 char MAX_1[]				= "max";
@@ -89,14 +89,14 @@ char MAX_2[]				= "Max";						//[max 3 letters]
 char ACT[]					= "Act";						//[max 3 letters - no space for Actual]
 char PLEASE_PUT[]			= "Please put";					//DISPLAY:	Please put
 char UP_THE_JAR[]			= "up the jar";					//			up the jar
-char TARA_JAR[]				= "Tara jar";
+char TARE_JAR[]				= "Tare jar";
 char FLOW[]					= "Flow:";
 char AS[]					= "AS";							//[Autostart - only OLED Display]
 char A_LOWER_CASE[]			= "a";							//[angle or auto - only OLED Display]
 char C_LOWER_CASE[]			= "c";							//[correction - only OLED Display]
 char F_LOWER_CASE[]			= "f";							//[flow - only OLED Display]
 
-char NO_TARA[]				= "no tara!";
+char NO_TARE[]				= "no tare!";
 
 char OFF[]					= "off";
 char ON[]					= "on";
