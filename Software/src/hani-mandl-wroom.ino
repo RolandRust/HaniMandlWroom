@@ -105,6 +105,7 @@
                                - Englische Sprache hinzugefügt
                                - OTA Update hinzugefügt
   2024-01 Achim Pfaff          - Verbesserte leere Glas Erkennung, da durch leichtes aufstellen von vollen Gläsern die Abfüllung gestartet wird.
+                               - Automatischer Volumenstrom alle 3 Durchgänge
                              
   
                                
@@ -159,10 +160,10 @@ String version = "W.0.2";
 //#define FEHLERKORREKTUR_WAAGE   // falls Gewichtssprünge auftreten, können diese hier abgefangen werden
                                   // Achtung, kann den Wägeprozess verlangsamen. Vorher Hardware prüfen.
 //#define QUETSCHHAHN_LINKS       // Servo invertieren, falls der Quetschhahn von links geöffnet wird. Mindestens ein Exemplar bekannt
+
 //
 // Ende Benutzereinstellungen!
 // 
-
 //
 // Ab hier nur verstellen wenn Du genau weisst, was Du tust!
 //
@@ -282,7 +283,6 @@ Adafruit_INA219 ina219;
   #endif
 #endif
 
-
 // ** Definition der pins 
 // ----------------------
 
@@ -334,7 +334,7 @@ static boolean rotating = false;   // debounce management für Rotary Encoder
 struct glas { 
   int Gewicht;
   int GlasTyp;
-  int Tara;
+  int Tare;
   int TripCount;
   int Count;
 };
@@ -371,8 +371,8 @@ struct glas glaeser[5] = {
 int i;                              // allgemeine Zählvariable
 int pos;                            // aktuelle Position des Poti bzw. Rotary 
 int gewicht;                        // aktuelles Gewicht
-int tara;                           // Tara für das ausgewählte Glas, für Automatikmodus
-int tara_glas;                      // Tara für das aktuelle Glas, falls Glasgewicht abweicht
+int tare;                           // Tara für das ausgewählte Glas, für Automatikmodus
+int tare_glas;                      // Tara für das aktuelle Glas, falls Glasgewicht abweicht
 long gewicht_leer;                  // Gewicht der leeren Waage
 float faktor;                       // Skalierungsfaktor für Werte der Waage
 int fmenge;                         // ausgewählte Füllmenge
@@ -381,11 +381,9 @@ int korrektur;                      // Korrekturwert für Abfüllmenge
 int autostart;                      // Vollautomatik ein/aus
 int autokorrektur;                  // Autokorrektur ein/aus
 int intGewicht;                     // A.P. Durchfluss pro Durchlauf welches fließen soll (g / Zeiteinheit) Abfüllgeschwindigkeit, dies soll eine konstante Geschwindigkeit beim abfüllen geben egal bei welchem Füllstand.
-int intGewichtD = 1;                // A.P. erlaubte Abweichung zu intGewicht
-const int RunningAverageCount = 3;  // A.P.
-int NextRunningAverage;             // A.P.   
-float RunningAverageBuffer[RunningAverageCount];     //A.P.
+int intGewichtD = 1;                // A.P. erlaubte Abweichung zu intGewicht  
 int Winkelmerker;                   // A.P. Merker für optimalen Winkel für nächste Befüllung
+int loop1_c;                        // A.P. Zähler für die Durchgänge  
 int kulanz_gr;                      // gewollte Überfüllung im Autokorrekturmodus in Gramm
 int winkel;                         // aktueller Servo-Winkel
 int winkel_hard_min = 0;            // Hard-Limit für Servo
@@ -437,7 +435,7 @@ int gewicht_alt;
 int winkel_min_alt;
 int pos_alt;
 int winkel_ist_alt;
-int tara_alt;
+int tare_alt;
 int current_mA_alt;
 int servo_aktiv_alt;
 int auto_aktiv_alt;
@@ -491,6 +489,40 @@ unsigned long  MARKER;
     else if (color_marker == 11)                        {MARKER = 0x0da1;}
   }
 #endif
+
+/*
+    Durchschnittsberechnung mit einem Ringbuffer
+    https://forum.arduino.cc/t/mittelwert-der-letzten-x-werte/1237432
+
+    2024-04-19 by noiasca
+*/
+template < typename T, size_t size>
+class Avg {
+    T store[size] {0};
+    size_t index = 0;
+    bool wraparound = false;
+    
+  public:
+    void add(T in) {
+      store[index] = in;
+      index++;
+      if (index >= size) {
+        index = 0;
+        wraparound = true;
+      }
+    }
+    T getAvg() {
+      T result = 0;
+      if (wraparound) {
+        for (auto &i : store) result += i;                    // Normalbetrieb
+        return result / size;
+      }
+      if (index == 0) return 0;                               // Anfangsproblem
+      for (size_t i = 0; i < index; i++) result += store[i];  // bis zum einmalig durchlauf aller Werte
+      return result / index;
+    }
+};
+Avg <int, 3 > average; // Mittelwerte über 3 Werte AP
 
 // Rotary Taster. Der Interrupt kommt nur im Automatikmodus zum Tragen und nur wenn der Servo inaktiv ist.
 // Der Taster schaltet in einen von drei Modi, in denen unterschiedliche Werte gezählt werden.
@@ -597,7 +629,6 @@ void getPreferences(void) {
   show_current    = preferences.getUInt("show_current", show_current);
   color_scheme    = preferences.getUInt("color_scheme", color_scheme);
   color_marker    = preferences.getUInt("color_marker", color_marker);
-  Winkelmerker    = winkel_min; //  A.P. Daten aus EEProm nehmen.
   preferences_chksum = faktor + pos + gewicht_leer + korrektur + autostart + autokorrektur + intGewicht + kulanz_gr + fmenge_index +
                        winkel_min + winkel_max + winkel_fein + buzzermode + ledmode + showlogo + showcredits + 
                        kali_gewicht + current_servo + glastoleranz + show_current + color_scheme + color_marker; //A.P.
@@ -620,8 +651,8 @@ void getPreferences(void) {
     glaeser[i].GlasTyp = preferences.getInt(ausgabe, ResetGlasTyp[i]);
     preferences_chksum += glaeser[i].GlasTyp;
     sprintf(ausgabe, "Tara%d", i);
-    glaeser[i].Tara= preferences.getInt(ausgabe, -9999);
-    preferences_chksum += glaeser[i].Tara;
+    glaeser[i].Tare= preferences.getInt(ausgabe, -9999);
+    preferences_chksum += glaeser[i].Tare;
     sprintf(ausgabe, "TripCount%d", i);
     glaeser[i].TripCount = preferences.getInt(ausgabe, 0);
     preferences_chksum += glaeser[i].TripCount;
@@ -665,7 +696,7 @@ void getPreferences(void) {
       Serial.println(GlasTypArray[glaeser[i].GlasTyp]);
       sprintf(ausgabe, "Tara%d = ", i);
       Serial.print(ausgabe);         
-      Serial.println(glaeser[i].Tara);
+      Serial.println(glaeser[i].Tare);
       i++;
     }
     Serial.print("Checksumme:");    
@@ -714,7 +745,7 @@ void setPreferences(void) {
   while( i < 5 ) {
     preferences_newchksum += glaeser[i].Gewicht;
     preferences_newchksum += glaeser[i].GlasTyp;
-    preferences_newchksum += glaeser[i].Tara;
+    preferences_newchksum += glaeser[i].Tare;
     i++;
   }
   if( preferences_newchksum == preferences_chksum ) {
@@ -752,7 +783,7 @@ void setPreferences(void) {
     sprintf(ausgabe, "GlasTyp%d", i);
     preferences.putInt(ausgabe, glaeser[i].GlasTyp);  
     sprintf(ausgabe, "Tara%d", i);
-    preferences.putInt(ausgabe, glaeser[i].Tara);
+    preferences.putInt(ausgabe, glaeser[i].Tare);
     i++;
   }
   preferences.end();
@@ -787,7 +818,7 @@ void setPreferences(void) {
       sprintf(ausgabe, "GlasTyp%d = ", i);
       Serial.print(ausgabe);         Serial.println(GlasTypArray[glaeser[i].GlasTyp]);
       sprintf(ausgabe, "Tara%d = ", i);
-      Serial.print(ausgabe);         Serial.println(glaeser[i].Tara);
+      Serial.print(ausgabe);         Serial.println(glaeser[i].Tare);
       i++;
     }
   #endif
@@ -1229,10 +1260,10 @@ void setupCounter(void) {
   }
 }
 
-void setupTara(void) {
+void setupTare(void) {
   int j;
   int x_pos;
-  tara = 0;
+  tare = 0;
   initRotaries(SW_MENU, 0, 0, 4, 1);
   i = 0;
   #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -1248,9 +1279,9 @@ void setupTara(void) {
       return;
     }
     else if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
-      tara = int(SCALE_GETUNITS(10));
-      if (tara > 20) {                  // Gläser müssen mindestens 20g haben
-         glaeser[getRotariesValue(SW_MENU)].Tara = tara;
+      tare = int(SCALE_GETUNITS(10));
+      if (tare > 20) {                  // Gläser müssen mindestens 20g haben
+         glaeser[getRotariesValue(SW_MENU)].Tare= tare;
       }
       #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
         change = true;
@@ -1271,8 +1302,8 @@ void setupTara(void) {
         }
         u8g2.print(ausgabe);
         u8g2.setCursor(80, 10+(j*13));
-        if (glaeser[j].Tara > 0) { 
-          sprintf(ausgabe, "%7dg", glaeser[j].Tara); 
+        if (glaeser[j].Tare > 0) { 
+          sprintf(ausgabe, "%7dg", glaeser[j].Tare); 
           u8g2.print(ausgabe);
         }
         else {
@@ -1291,9 +1322,9 @@ void setupTara(void) {
       }
       gfx->setTextColor(TEXT);
       gfx->setFont(Punk_Mono_Bold_240_150);
-      x_pos = CenterPosX(TARAVALUES_JAR, 14, 320);
+      x_pos = CenterPosX(TAREVALUES_JAR, 14, 320);
       gfx->setCursor(x_pos, 25);
-      gfx->println(TARAVALUES_JAR);
+      gfx->println(TAREVALUES_JAR);
       gfx->drawLine(0, 30, 320, 30, TEXT);
       j = 0;
       while(j < 5) {
@@ -1312,8 +1343,8 @@ void setupTara(void) {
         }
         gfx->println(ausgabe);
         gfx->setCursor(165, 60+(j*30));
-        if (glaeser[j].Tara > 0) { 
-          sprintf(ausgabe, "%10dg", glaeser[j].Tara); 
+        if (glaeser[j].Tare > 0) { 
+          sprintf(ausgabe, "%10dg", glaeser[j].Tare); 
           gfx->print(ausgabe);
         }
         else {
@@ -1675,7 +1706,7 @@ void setupAutomatik(void) {
   int lastautokorrektur = autokorrektur;
   int lastkulanz        = kulanz_gr;
   int korrektur_alt     = korrektur;
-  int lastintGewicht    = intGewicht;
+  int intGewicht_alt    = intGewicht;
   bool wert_aendern     = false;
   #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
     int y_offset = 8;
@@ -1706,7 +1737,7 @@ void setupAutomatik(void) {
       kulanz_gr     = lastkulanz;
       glastoleranz  = lastglastoleranz;
       korrektur     = korrektur_alt;
-      intGewicht    = lastintGewicht;
+      intGewicht    = intGewicht_alt;
       setRotariesValue(SW_KORREKTUR, korrektur_alt);
       rotary_select = SW_MENU;
       modus = -1;
@@ -2142,7 +2173,7 @@ void setupFuellmenge(void) {
     }
   }
   fmenge = glaeser[pos].Gewicht;
-  tara   = glaeser[pos].Tara;
+  tare   = glaeser[pos].Tare;
   fmenge_index = pos; 
   modus = -1;
   i = 0;
@@ -3050,7 +3081,7 @@ void processSetup(void) {
   int menuitem_old = -1;
   if (ina219_installed) {MenuepunkteAnzahl++;}
   int posmenu[MenuepunkteAnzahl];
-  const char *menuepunkte[MenuepunkteAnzahl] = {TARAVALUES, CALIBRATION, FILL_QUANTITY, AUTOMATIC, SERVOSETTINGS, PARAMETER, COUNTER, COUNTER_TRIP, CLEAR_PREFS};
+  const char *menuepunkte[MenuepunkteAnzahl] = {TAREVALUES, CALIBRATION, FILL_QUANTITY, AUTOMATIC, SERVOSETTINGS, PARAMETER, COUNTER, COUNTER_TRIP, CLEAR_PREFS};
   //MenuepunkteAnzahl = sizeof(menuepunkte)/sizeof(menuepunkte[0]);
   if (ina219_installed) {
       menuepunkte[MenuepunkteAnzahl - 1] = menuepunkte[MenuepunkteAnzahl -2];    //Clear Pref eins nach hinten schieben
@@ -3146,7 +3177,7 @@ void processSetup(void) {
       Serial.println(menuitem);
     #endif
       lastpos = menuitem;
-      if (menuepunkte[menuitem] == TARAVALUES)        setupTara();              // Tara 
+      if (menuepunkte[menuitem] == TAREVALUES)        setupTare();              // Tara 
       if (menuepunkte[menuitem] == CALIBRATION)       setupCalibration();       // Kalibrieren 
       if (menuepunkte[menuitem] == FILL_QUANTITY)     setupFuellmenge();        // Füllmenge 
       if (menuepunkte[menuitem] == AUTOMATIC)         setupAutomatik();         // Autostart/Autokorrektur konfigurieren 
@@ -3176,6 +3207,7 @@ void processAutomatik(void) {
   static float gewicht_alt2;       //Gewicht des vorhergehenden Durchlaufs A.P.
   static int gewicht_vorher;       // Gewicht des vorher gefüllten Glases
   static int sammler_num = 5;      // Anzahl identischer Messungen für Nachtropfen
+  int loop1 = 3;                   // anzahl alle wieviel Durchgänge die auto Servo einstellung gemacht werden soll A.P.
   int n;
   int y_offset = 0;
   if (modus != MODE_AUTOMATIK) {
@@ -3184,10 +3216,11 @@ void processAutomatik(void) {
      servo_aktiv = 0;              // Servo-Betrieb aus
      SERVO_WRITE(winkel);
      auto_aktiv = 0;               // automatische Füllung starten
-     tara_glas = 0;
+     tare_glas = 0;
      rotary_select = SW_WINKEL;    // Einstellung für Winkel über Rotary
      offset_winkel = 0;            // Offset vom Winkel wird auf 0 gestellt
      initRotaries(SW_MENU, fmenge_index, 0, 4, 1);
+     setRotariesValue(SW_FLUSS, intGewicht);  //warum auch immer :-)
      gewicht_vorher = glaeser[fmenge_index].Gewicht + korrektur;
      #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
       int x_pos;
@@ -3294,16 +3327,16 @@ void processAutomatik(void) {
     setRotariesValue(SW_WINKEL, pos);
   }
   korrektur    = getRotariesValue(SW_KORREKTUR);
-  intGewicht   = getRotariesValue(SW_FLUSS);                                  //da muss noch nen bock drin sein
+  intGewicht   = getRotariesValue(SW_FLUSS);
   fmenge_index = getRotariesValue(SW_MENU);
   fmenge       = glaeser[fmenge_index].Gewicht;
-  tara         = glaeser[fmenge_index].Tara;
-  if (tara <= 0) { 
+  tare         = glaeser[fmenge_index].Tare;
+  if (tare <= 0) { 
     auto_aktiv = 0;
   }
   // wir starten nur, wenn das Tara für die Füllmenge gesetzt ist!
   // Ein erneuter Druck auf Start erzwingt die Aktivierung des Servo
-  if (digitalRead(button_start_pin) == HIGH && tara > 0) {
+  if (digitalRead(button_start_pin) == HIGH && tare > 0) {
     while(digitalRead(button_start_pin) == HIGH) {
        delay(1);
     }
@@ -3325,25 +3358,25 @@ void processAutomatik(void) {
     winkel      = winkel_min + offset_winkel;
     servo_aktiv = 0;
     auto_aktiv  = 0;
-    tara_glas   = 0;
+    tare_glas   = 0;
   }
   // Fehlerkorrektur der Waage, falls Gewicht zu sehr schwankt 
   #ifdef FEHLERKORREKTUR_WAAGE
-    int Vergleichsgewicht = (int(SCALE_GETUNITS(SCALE_READS))) - tara;
+    int Vergleichsgewicht = (int(SCALE_GETUNITS(SCALE_READS))) - tare;
     for (byte j = 0 ; j < 3; j++) { // Anzahl der Wiederholungen, wenn Abweichung zu hoch
-      gewicht = int(SCALE_GETUNITS(SCALE_READS)) - tara;
+      gewicht = int(SCALE_GETUNITS(SCALE_READS)) - tare;
       if (abs(gewicht - Vergleichsgewicht) < 50)  // Abweichung für Fehlererkennung
         break; 
       delay(100);
     }
   #else
-    gewicht = int(SCALE_GETUNITS(SCALE_READS)) -   tara;
+    gewicht = int(SCALE_GETUNITS(SCALE_READS)) -   tare;
   #endif 
   // Glas entfernt -> Servo schliessen
   if (gewicht < -20) {
     winkel      = winkel_min + offset_winkel;
     servo_aktiv = 0;
-    tara_glas   = 0;
+    tare_glas   = 0;
     if (autostart != 1) {  // Autostart nicht aktiv
       auto_aktiv  = 0;
     }
@@ -3400,23 +3433,23 @@ void processAutomatik(void) {
     // A.P. kurz warten und über 5 Messungen prüfen ob das Gewicht nicht nur eine zufällige Schwankung war 
     int gewicht_Mittel = 0;
     for (int i = 0; i < 5; i++){
-      gewicht = int(SCALE_GETUNITS(SCALE_READS)) - tara;
+      gewicht = int(SCALE_GETUNITS(SCALE_READS)) - tare;
       gewicht_Mittel += gewicht;
       delay(300);
     }
     gewicht = gewicht_Mittel / 5;                 //A.P.  Mittleres Gewicht über die 1,5s
-    if (intGewicht <= 0) {
+    if (intGewicht > 0) {
       winkel = Winkelmerker ;                       //A.P. für Folgeglas optimalen Winkel vom Vorglas einstellen.
     }
     if (abs(gewicht) <= glastoleranz) {
       if (intGewicht <= 0) {
-        gewicht = int(SCALE_GETUNITS(SCALE_READS)) - tara;  // A.P.
+        gewicht = int(SCALE_GETUNITS(SCALE_READS)) - tare;  // A.P.
       }
-      tara_glas = gewicht;
+      tare_glas = gewicht;
       #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
         gfx->fillRect(109, 136, 211, 27, BACKGROUND);
         gfx->setFont(Punk_Mono_Thin_240_150);
-        sprintf(ausgabe, "%s:%dg ", TARA_JAR, tara_glas);
+        sprintf(ausgabe, "%s:%dg ", TARE_JAR, tare_glas);
         int i = StringLenght(ausgabe);
         gfx->setCursor(320 - 14 * i, 156);
         gfx->print(ausgabe);
@@ -3424,7 +3457,7 @@ void processAutomatik(void) {
       #ifdef isDebug 
         Serial.print(" gewicht: ");           Serial.print(gewicht);
         Serial.print(" gewicht_vorher: ");    Serial.print(gewicht_vorher);
-        Serial.print(" zielgewicht: ");       Serial.print(fmenge + korrektur + tara_glas + autokorrektur_gr);
+        Serial.print(" zielgewicht: ");       Serial.print(fmenge + korrektur + tare_glas + autokorrektur_gr);
         Serial.print(" kulanz: ");            Serial.print(kulanz_gr);
         Serial.print(" Autokorrektur: ");     Serial.println(autokorrektur_gr);
       #endif      
@@ -3436,7 +3469,7 @@ void processAutomatik(void) {
       buzzer(BUZZER_SHORT);
     }
   }
-  zielgewicht = fmenge + korrektur + tara_glas + autokorrektur_gr;
+  zielgewicht = fmenge + korrektur + tare_glas + autokorrektur_gr;
   // Anpassung des Autokorrektur-Werts
   if (autokorrektur == 1) {                                                       
     if ( auto_aktiv == 1 && servo_aktiv == 0 && winkel == winkel_min + offset_winkel && gewicht >= zielgewicht && sammler_num <= 5) {     
@@ -3449,7 +3482,7 @@ void processAutomatik(void) {
         sammler_num = 0;
       } 
       else if (sammler_num == 5) {                        // gewicht ist 5x identisch, autokorrektur bestimmen
-        autokorrektur_gr = (fmenge + kulanz_gr + tara_glas) - (gewicht - autokorrektur_gr);
+        autokorrektur_gr = (fmenge + kulanz_gr + tare_glas) - (gewicht - autokorrektur_gr);
         if (korrektur + autokorrektur_gr > kulanz_gr) {   // Autokorrektur darf nicht überkorrigieren, max Füllmenge plus Kulanz
           autokorrektur_gr = kulanz_gr - korrektur;
           #ifdef isDebug
@@ -3483,11 +3516,11 @@ void processAutomatik(void) {
     gezaehlt = false;
     buzzer(BUZZER_SHORT);
   }
-  if (servo_aktiv == 1 && intGewicht == 0) { 
+  if (servo_aktiv == 1 && intGewicht <= 0) { 
     winkel = (winkel_max * pos / 100);  // A.P.wird deaktiviert wenn intGewicht ist gleich 0 (automatische Durchflussgeschwindigkeit ist 0)
   }
   if (intGewicht > 0) {
-    if (servo_aktiv == 1 && (zielgewicht - gewicht <= fein_dosier_gewicht) && (winkel_max*pos / 100 * zielgewicht-gewicht / fein_dosier_gewicht <= winkel)) {
+    if (servo_aktiv == 1 && (zielgewicht - gewicht <= fein_dosier_gewicht) && ((winkel_max*pos / 100) * (zielgewicht-gewicht) / fein_dosier_gewicht <= winkel)) {
       winkel = ((winkel_max*pos / 100) * ((zielgewicht-gewicht) / fein_dosier_gewicht));    // AP nur wenn der hier berechnete Winkel kleiner dem aktuellen Winkel ist wird das Ventil zugefahren (ansonsten geht es bei kleineren Öffnungsgraden auf
     }
   }
@@ -3501,30 +3534,27 @@ void processAutomatik(void) {
   }
   if (intGewicht > 0) {
     // A.P.  Es wird ein gleitender Mittelwert über 3 Messungen durchgeführt.
+    float RunningAverageGewicht;
     int RawGewicht = gewicht-gewicht_alt2;
-    RunningAverageBuffer[NextRunningAverage++] = RawGewicht;
-    if (NextRunningAverage >= RunningAverageCount)
-    {
-      NextRunningAverage = 0; 
-    }
-    float RunningAverageGewicht = 0;
-    for(int i=0; i< RunningAverageCount; ++i) {
-      RunningAverageGewicht += RunningAverageBuffer[i];
-    }
-    RunningAverageGewicht /= RunningAverageCount;
+    average.add(RawGewicht);
+    RunningAverageGewicht = (average.getAvg());
     //Optimierung der >Durchflussgeschwindigkeit  A.P.
-    if (servo_aktiv == 1 && ((RunningAverageGewicht + intGewichtD) > intGewicht) && (intGewicht >= 0) && ((zielgewicht - gewicht) >= fein_dosier_gewicht)) {
+    if (loop1_c < loop1){ loop1_c = loop1_c + 1;}
+    else if (servo_aktiv == 1 && ((RunningAverageGewicht + intGewichtD) > intGewicht) && (intGewicht > 0) && ((zielgewicht - gewicht) > fein_dosier_gewicht)) {
       winkel = winkel -2;
       Winkelmerker  = winkel; // A.P. Merkt sich den letzten optimalen Winkel des Servos.
+      loop1_c =0;
     }    //A.P.  Automatische Geschwindigkeit des Abfüllvorgangs
-    if (servo_aktiv == 1 && ((RunningAverageGewicht - intGewichtD) < intGewicht) && (intGewicht >= 0) && ((zielgewicht - gewicht) >= fein_dosier_gewicht)) {
+    else if (servo_aktiv == 1 && ((RunningAverageGewicht - intGewichtD) < intGewicht) && (intGewicht > 0) && ((zielgewicht - gewicht) > fein_dosier_gewicht)) {
       winkel = winkel +2;
       if (winkel >= (winkel_max*pos/100)) {
         winkel = (winkel_max*pos/100);
-      }    
-      Winkelmerker  = winkel; // A.P. Merkt sich den letzten optimalen Winkel des Servos.
-    }  //A.P.  Automatische Geschwindigkeit des Abfüllvorgangs
-    gewicht_alt2 = gewicht;  //A.P.
+        Winkelmerker  = winkel; // A.P. Merkt sich den letzten optimalen Winkel des Servos.
+      }
+      loop1_c =0;
+    }
+    else {loop1_c =0;}
+    gewicht_alt2 = gewicht;
   }
   // Glas ist voll
   if (servo_aktiv == 1 && gewicht >= zielgewicht) {
@@ -3543,7 +3573,7 @@ void processAutomatik(void) {
   }   
   // Glas entfernt -> Servo schliessen zusätzliche Abfrage
   if (winkel > (winkel_min + offset_winkel)) {
-    gewicht = int(SCALE_GETUNITS(SCALE_READS)) - tara; 
+    gewicht = int(SCALE_GETUNITS(SCALE_READS)) - tare; 
     if (gewicht < -20) { 
       delay(200);  // A.P.  Um einen Reset des ESP zu verhindern wenn er kurz nach öffnen geschlossen wird.
       winkel      = winkel_min + offset_winkel;
@@ -3558,7 +3588,7 @@ void processAutomatik(void) {
       Serial.print(" Dauer ");           Serial.print(millis() - scaletime);
       Serial.print(" Füllmenge: ");      Serial.print(fmenge);
       Serial.print(" Korrektur: ");      Serial.print(korrektur);
-      Serial.print(" Tara_glas:");       Serial.print(tara_glas);
+      Serial.print(" Tara_glas:");       Serial.print(tare_glas);
       Serial.print(" Autokorrektur: ");  Serial.print(autokorrektur_gr);
       Serial.print(" Zielgewicht ");     Serial.print(zielgewicht);
       Serial.print(" Erzwinge Servo: "); Serial.print(erzwinge_servo_aktiv);
@@ -3572,7 +3602,7 @@ void processAutomatik(void) {
   #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
     u8g2.clearBuffer();
     // wenn kein Tara für unser Glas definiert ist, wird kein Gewicht sondern eine Warnung ausgegeben
-    if (tara > 0) {
+    if (tare > 0) {
       // kein Glas aufgestellt 
       if (gewicht < -20) {
         u8g2.setFont(u8g2_font_courB10_tf);
@@ -3580,22 +3610,22 @@ void processAutomatik(void) {
         u8g2.setCursor(37, 43 + y_offset); u8g2.print(UP_THE_JAR);
       } 
       else {
-        if(autostart == 1 && auto_aktiv == 1 && servo_aktiv == 0 && gewicht >= -5 && gewicht - tara_glas < fmenge) {
+        if(autostart == 1 && auto_aktiv == 1 && servo_aktiv == 0 && gewicht >= -5 && gewicht - tare_glas < fmenge) {
           u8g2.setFont(u8g2_font_unifont_t_symbols);
           u8g2.drawGlyph(14, 38 + y_offset, 0x2612);
           u8g2.setFont(u8g2_font_courB24_tf);
         }
         u8g2.setCursor(10, 42 + y_offset);
         u8g2.setFont(u8g2_font_courB24_tf);
-        sprintf(ausgabe,"%5dg", gewicht - tara_glas);
+        sprintf(ausgabe,"%5dg", gewicht - tare_glas);
         u8g2.print(ausgabe);
       }
     } 
     else {
       u8g2.setFont(u8g2_font_courB14_tf);
-      int y = get_length(NO_TARA);
+      int y = get_length(NO_TARE);
       u8g2.setCursor(128 - y * 10 -5, 38 + y_offset);
-      sprintf(ausgabe,"%6s", NO_TARA);                    //kein Tara
+      sprintf(ausgabe,"%6s", NO_TARE);                    //kein Tara
       u8g2.print(ausgabe);
     }
     // Play/Pause Icon, ob die Automatik aktiv ist
@@ -3784,7 +3814,7 @@ void processAutomatik(void) {
       intGewicht_alt = intGewicht;
     }
     //Glasauswahl
-    if ((glas_alt != fmenge_index and servo_aktiv == 0 and gewicht <= glaeser[fmenge_index].Gewicht - tara)) {
+    if ((glas_alt != fmenge_index and servo_aktiv == 0 and gewicht <= glaeser[fmenge_index].Gewicht - tare)) {
       if (rotary_select == SW_MENU and servo_aktiv == 0) {
         gfx->setTextColor(MARKER);
       }
@@ -3864,7 +3894,7 @@ void processAutomatik(void) {
       gfx->setTextColor(TEXT);
     }
     //Glas aufstellen
-    if (tara > 0) {
+    if (tare > 0) {
       if (gewicht < -20 and gewicht != gewicht_alt) {
         gfx->fillRect(80, 24, 240, 80, BACKGROUND);
         gfx->setFont(Punk_Mono_Bold_320_200);
@@ -3878,7 +3908,7 @@ void processAutomatik(void) {
         gfx->fillRect(80, 24, 240, 80, BACKGROUND);
         gfx->setFont(Punk_Mono_Bold_600_375);
         gfx->setCursor(100, 85);
-        sprintf(ausgabe, "%5ig", gewicht - tara_glas);
+        sprintf(ausgabe, "%5ig", gewicht - tare_glas);
         gfx->print(ausgabe);
       }
       if (gewicht != gewicht_alt) {
@@ -3905,7 +3935,7 @@ void processAutomatik(void) {
       gfx->setTextColor(RED);
       gfx->setFont(Punk_Mono_Bold_320_200);
       gfx->setCursor(120, 74);
-      gfx->print(NO_TARA);                 //kein Tara
+      gfx->print(NO_TARE);                 //kein Tara
       gfx->setTextColor(TEXT);
       gewicht_alt = gewicht;
     }
@@ -3938,13 +3968,13 @@ void processHandbetrieb(void) {
     servo_aktiv = 0;              // Servo-Betrieb aus
     SERVO_WRITE(winkel);
     rotary_select = SW_WINKEL;
-    tara = 0;
+    tare = 0;
     offset_winkel = 0;            // Offset vom Winkel wird auf 0 gestellt
     #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
       int x_pos;
       gewicht_alt = -9999999;
       pos_alt = -1;
-      tara_alt = -1;
+      tare_alt = -1;
       current_mA_alt = -1;
       servo_aktiv_alt = -1;
       winkel_ist_alt = -1;
@@ -3962,7 +3992,7 @@ void processHandbetrieb(void) {
       gfx->drawLine(0, 170, 320, 170, TEXT);
       gfx->drawLine(160, 170, 160, 240, TEXT);
       gfx->setCursor(170, 192);
-      gfx->printf("%s:", TARA);
+      gfx->printf("%s:", TARE);
       if (ina219_installed == 1) {
         gfx->setCursor(170, 215);
         sprintf(ausgabe,"%s:",INA);
@@ -3979,7 +4009,7 @@ void processHandbetrieb(void) {
     #endif
   }
   pos = getRotariesValue(SW_WINKEL);
-  gewicht = SCALE_GETUNITS(SCALE_READS) - tara;
+  gewicht = SCALE_GETUNITS(SCALE_READS) - tare;
   if ((digitalRead(button_start_pin)) == HIGH) {
     servo_aktiv = 1;
   }
@@ -3987,7 +4017,7 @@ void processHandbetrieb(void) {
     servo_aktiv = 0;
   }
   if ((digitalRead(outputSW)) == LOW) {
-      tara = SCALE_GETUNITS(SCALE_READS);
+      tare = SCALE_GETUNITS(SCALE_READS);
   }
   if (servo_aktiv == 1) {
     winkel = ((winkel_max * pos) / 100);
@@ -4036,10 +4066,10 @@ void processHandbetrieb(void) {
     }
     u8g2.setCursor(0, 64);
     u8g2.print(MANUAL);
-    if (tara > 0) {
-      int y = get_length(TARA);
+    if (tare > 0) {
+      int y = get_length(TARE);
       u8g2.setCursor(128 - y * 6, 64);
-      u8g2.print(TARA);
+      u8g2.print(TARE);
     }
     u8g2.sendBuffer();
   #endif
@@ -4075,14 +4105,14 @@ void processHandbetrieb(void) {
       gfx->print(ausgabe);
       pos_alt = pos;
     }
-    if (tara != tara_alt) {
+    if (tare != tare_alt) {
       gfx->fillRect(230, 175, 90, 22, BACKGROUND);
       gfx->setFont(Punk_Mono_Bold_200_125);      
-      sprintf(ausgabe, "%5ig", tara);
+      sprintf(ausgabe, "%5ig", tare);
       int y = get_length(ausgabe);
       gfx->setCursor(320 - y * 12 - 5, 192);
       gfx->print(ausgabe);
-      tara_alt = tara;
+      tare_alt = tare;
     }
     if (ina219_installed == 1 and current_mA != current_mA_alt and (current_servo > 0 or show_current == 1)) {
       gfx->fillRect(240, 221, 80, 20, BACKGROUND);
@@ -4365,13 +4395,6 @@ void setup() {
 }
 
 void loop() {
-  //nur zum test
-  //Serial.println("OTA START");
-  //OTASetup();
-  //while (WiFi.status() == WL_CONNECTED) {
-  //  server.handleClient();
-  //}
-  //END nur zum test
   rotating = true;     // debounce Management
   //INA219 Messung
   if (ina219_installed and inawatchdog == 1 and (current_servo > 0 or show_current == 1) and (modus == MODE_HANDBETRIEB or modus == MODE_AUTOMATIK)) {
