@@ -29,7 +29,7 @@ Diese könnt Ihr nun an eurem Computer eingeben (z.B. http://192.168.76.232/upda
 ![HaniMandl_1](./Hardware/Gehäuse/Bilder/OTA_1.jpg)
 
 ## Automatischer Volumenstrom beim Abfüllen
-unter Setup - AUtomatik kann neu ein Automatisch geregelter Volumenstrom eingestellt werden. Dies kann Hilfreich sein, wenn sehr flüssiger Honig abgefüllt wird.
+Unter Setup - Automatik kann neu ein Automatisch geregelter Volumenstrom eingestellt werden. Dies kann Hilfreich sein, wenn sehr flüssiger Honig abgefüllt wird.
 
 ## Bekannte Käferlein
 Beim ersten Start ist der maximale Öffnungswinkel im Manuel und Automatik Betrieb auf 0. Dieser muss dann mit der Rotary eingestellt werden. Danach wird der Wert gespeichert. Ob das in der Alten Version auch schon so war, kann ich aus dem Kopf nicht sagen :-)
