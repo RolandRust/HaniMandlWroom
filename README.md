@@ -7,6 +7,36 @@ HaniMandel für das Node MCU ESP32 38Pin Evaluation Board<br>
 Dies ist eine abgeänderte Version von dem Orginal HaniMandl Projekt. Die Idee und Veröffentlichung wurde auf der Facebook-Gruppe ["Imkerei und Technik. Eigenbau"](https://www.facebook.com/groups/139671009967454) veröffentlicht.
 Als Grundlage für dieses Projekt bediente ich mich am [develop Branch (V0.2.13)](https://github.com/ClemensGruber/hani-mandl/tree/develop) von Clemens Gruber.
 
+## Menüsprache
+```
+#define LANGUAGE 1                // 1 = Deutsch
+                                  // 2 = Englisch
+```
+Die Sprachdateien sind zu finden unter: ./src/Resources
+es können problemlos noch weitere Sprachen implementiert werden
+
+## OTA Update
+Neu kann man auch über WLAN eine neue Firmware aufspielen.
+Diese Funktion wurde mit Hilfe von ElegantOTA implementiert: https://github.com/ayushsharma82/ElegantOTA
+```
+#define OTA 1                     // 0 = OTA Uptade ausgeschalten
+                                  // 1 = OTA Update eingeschalten
+```
+Die SSID und das Passwort wird in dem File ./src/Resources/wifi.h eingetraden.
+Um das OTA zu aktivieren betätigt die Start Taste währent Ihr im Setupmenü Hauptbildschirm seid. Danach verbindet sich der HM mit dem WLAN und wenn es klappt wird die IP-Adresse angeteigt.
+Diese könnt Ihr nun an eurem Computer eingeben (z.B. http://192.168.76.232/update) und danach ein Beliebiges Binary File über den Browser Flaschen.  
+
+![HaniMandl_1](./Hardware/Gehäuse/Bilder/OTA_1.jpg)
+
+
+
+
+
+## Changelog
+W.0.2
+- OTA update implementiert
+- Automatischer Volumenstrom beim Abfüllen implementiert (Nicht von mir getestet)
+- Der HM kann nun auch über eine Sprachdatei die Menüsprache ändern (implementiert wurde bis jetzt Deutsch und Englisch)
 
 ## Copyright
 
