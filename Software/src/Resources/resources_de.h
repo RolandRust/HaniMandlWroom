@@ -1,3 +1,6 @@
+char LANGUAGE1[]            = "Sprache";
+char LANGUAGE2[]            = "Deutsch";
+
 //Process Setup
 char TAREVALUES[]           = "Tarawerte";
 char CALIBRATION[]          = "Kalibrieren";
@@ -62,6 +65,23 @@ char CALIBRATION_DONE[]     = "Kalibration beendet";
 //Setup Clear Preferenzes
 char CLEAR_PREFERENCES[]    = "Lösche Preferences";
 char CLEAR_NVS_MEMORY[]     = "Lösche NVS Speicher";
+
+//Setup Turntable
+char TURNTABLE[]            = "Drehteller";
+char INIT_TURNTABLE[]       = "Init Drehteller";
+char ADJUST_JAR_POS[]       = "Glas Pos. anpassen";
+char MOVE_JAR[]             = "Versiebe Glas";
+char SPEED_INIT[]           = "Init Geschw.";
+char SPEED_RUN[]            = "Run Geschw.";
+char STEPS[]                = "Schritte";
+char MOVE_POS[]             = "Verschiebe Pos.";
+char POSITION[]             = "Position";
+char SETUP_STEPPER[]        = "Setup Schrittmotor";
+char SETUP_SERVO[]          = "Setup Servo";
+char OKKAY[]                = "ok";
+char NOKAY[]                = "nok";
+char CONNECTION[]           = "Verbindung";
+char FAILED[]               = "fehlgeschlagen";
 
 //Warnings
 char NO[]                   = "Keine";

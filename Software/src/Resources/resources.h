@@ -1,3 +1,5 @@
+char LANGUAGE1[][30] = {"Sprache","Language"};
+char LANGUAGE2[][30] = {"Deutsch","English"};
 char TAREVALUES[][30] = {"Tarawerte","Tarevalues"};
 char CALIBRATION[][30] = {"Kalibrieren","Calibration"};
 char FILL_QUANTITY[][30] = {"Füllmenge","Fill quantity"};
