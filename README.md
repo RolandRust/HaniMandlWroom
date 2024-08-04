@@ -50,6 +50,10 @@ Die Hardware (Gehäuse und PCB) sind von mir gemacht worden. Ich verzichte auf e
 Gehäuse: Ondsel/FreeCAD (keine Lizenz notwendig)<br>
 PCB: DipTrace (kommerzielle Lizenz)
 
+## Drehteller addon fü den Hanimandel (HonigSchleppElesl)
+
+zu finden unter: https://github.com/RolandRust/HonigSchleppElesl/
+
 ## Appell an dich
 
 Bitte respektiert unsere Arbeit als Maker. Wir investieren etliche Wochen und Monate in ein Projekt und geben dies dann Gratis euch zur Verfügung. Wir schlagen keinen Profit daraus und machen dies nur zum Spass und hoffen das es euch auch Spass macht. Ich habe kein Problem damit, wenn jemand 10 Stück baut und diese zum Selbstkostenpreis (ein Bier obendrauf liegt auch noch drin) den Imkerfreunden weitergibt. Aber schlägt kein Gewinn daraus.
