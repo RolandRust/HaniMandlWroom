@@ -50,7 +50,7 @@ Die Hardware (Gehäuse und PCB) sind von mir gemacht worden. Ich verzichte auf e
 Gehäuse: Ondsel/FreeCAD (keine Lizenz notwendig)<br>
 PCB: DipTrace (kommerzielle Lizenz)
 
-## Drehteller addon fü den Hanimandel (HonigSchleppElesl)
+## Drehteller addon für den HaniMandel (HonigSchleppElesl)
 
 zu finden unter: https://github.com/RolandRust/HonigSchleppElesl/
 
