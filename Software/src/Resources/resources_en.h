@@ -10,7 +10,7 @@ char SERVOSETTINGS[]		= "Servosettings";
 char PARAMETER[]			= "Parameter";
 char COUNTER[]				= "Counter";
 char COUNTER_TRIP[]			= "CounterTrip";
-char CLEAR_PREFS[]			= "Clear Prefs";
+char CLEAR_PREFS[]			= "Clear Prefs";				//Clear Preferences
 char INA219_SETUP[]			= "INA219 Setup";
 
 //Setup Tarevalues
@@ -18,9 +18,11 @@ char TAREVALUES_JAR[]		= "Tarevalues jars";			//DISPLAY:	Tarevalues jars
 char MISSING[]				= "missing";				    //		    missing
 
 //Setup Calibration
+//Please empty the scale and confirm with OK
 char PLEASE_EMPTY_THE[]		= "Please empty the";			//DISPLAY:	Please empty the
 char SCALE_AND_CONFIRM[]	= "scale and confirm";			//		    scale and confirm
 char WITH_OK_1[]			= "with OK";				    //		    with OK
+//Please set up {value} and confirm with OK
 char PLEASE_SET_UP[]		= "Please set up";			    //DISPLAY:	Please set up
 char AND_CONFIRM[]			= "and confirm";			    //		    {500g} and confirm
 char WITH_OK_2[]			= "with ok";				    //		    with ok
@@ -52,7 +54,7 @@ char MARKER_COLOR[]			= "Marker color";
 
 //Setup INA219
 char SERVO_CURRENT[]	    = "Servo current";
-char CAL_HONEY_GATE[]		= "Cal. honey gate";
+char CAL_HONEY_GATE[]		= "Cal. honey gate";				//Calibrate honey gate
 char SHOW_CURRENT[]			= "Show current";
 char MAX_CURRENT[]			= "max. current";
 char MIN_ANGLE[]			= "min. angle";
@@ -69,25 +71,38 @@ char CLEAR_NVS_MEMORY[]		= "Clear NVS memory";
 //Setup Turntable
 char TURNTABLE[]            = "Turntable";
 char INIT_TURNTABLE[]       = "Init Turntable";
-char ADJUST_JAR_POS[]       = "Adjust jar  pos.";
+char SETUP_TURNTABLE[]      = "Setup Turntable";
+char SETUP_DROPPRODECTION[] = "Setup Dropprodection";
+//char ADJUST_JAR_POS[]       = "Adjust jar  pos.";			//Adjust jar  position
+//char STEPS[]                = "Steps";
+//char POSITION[]             = "Position";
 char MOVE_JAR[]             = "Move jar";
 char SPEED_INIT[]           = "Speed init";
 char SPEED_RUN[]            = "Speed run";
-char STEPS[]                = "Steps";
 char MOVE_POS[]             = "Move Position";
-char POSITION[]             = "Position";
 char SETUP_STEPPER[]        = "Setup stepper";
 char SETUP_SERVO[]          = "Setup servo";
-char OKKAY[]                = "ok";
-char NOKAY[]                = "nok";
+char OKKAY[]                = "ok";                         //ok [max 3 letters]
+char NOKAY[]                = "nok";                        //not ok [max 3 letters]
+char CENTER_JAR[]           = "Center jar";
+char OPEN_DROPPROTECTION[]  = "Open Dropprod.";             //open Dropprodection
+char CLOSE_DROPPROTECTION[] = "Close Dropprod.";            //close Dropprodection
+char SPEED_DROPPROTECTION[] = "Speed Dropprod.";            //speed Dropprodection
+char WAIT_TO_OPEN_DP[]      = "Wait to open DP";            //wait to open Dropprodection
+char DP_MIN_ANGLE[]         = "DP min angle";               //Dropprodection min angle
+char DP_MAX_ANGLE[]         = "DP max angle";               //Dropprodection max angle
+//Connection failed
 char CONNECTION[]           = "Connection";                 //Display: Connection
 char FAILED[]               = "failed";                     //         failed
 
 //Warnings
+//no scale!
 char NO[] 				    = "no";							//DISPLAY:	no
 char SCALE[]				= "scale!";						//		    scale!
+//not calibrated
 char NOT[]				    = "not";						//DISPLAY:	not
 char CALIBRATED[]			= "calibrated";					//          calibrated
+//empty the scale
 char EMPTY[]				= "empty";						//DISPLAY:	empty
 char THE_SCALE[]			= "the scale!";					//		    the scale!
 
@@ -107,6 +122,7 @@ char AUTOCORR[]				= "Autocorr.";					//[no space for Autocorrection]
 char MIN[]				    = "Min";						//[max 3 letters]
 char MAX_2[]				= "Max";						//[max 3 letters]
 char ACT[]				    = "Act";						//[max 3 letters - no space for Actual]
+//Please put up the jar
 char PLEASE_PUT[]			= "Please put";					//DISPLAY:	Please put
 char UP_THE_JAR[]			= "up the jar";					//	    	up the jar
 char TARE_JAR[]				= "Tare jar";
