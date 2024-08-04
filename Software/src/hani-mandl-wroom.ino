@@ -106,7 +106,8 @@
                                - OTA Update hinzugefügt
   2024-01 Achim Pfaff          - Verbesserte leere Glas Erkennung, da durch leichtes aufstellen von vollen Gläsern die Abfüllung gestartet wird.
                                - Automatischer Volumenstrom alle 3 Durchgänge
-  2024-04 Roland Rust          - Drehteller
+  2024-04 Roland Rust        | W.0.3      
+                               - Drehteller
                              
   
                                
@@ -156,7 +157,7 @@ String version = "W.0.3";
                                   // 99 = Oled über I2C und TFT über SPI für development
 #define OTA 1                     // 0 = OTA Uptade ausgeschalten
                                   // 1 = OTA Update eingeschalten
-#define DREHTELLER 0              // 0 = kein Drehteller
+#define DREHTELLER 1              // 0 = kein Drehteller
                                   // 1 = Drehteller vorhanden
 //#define FEHLERKORREKTUR_WAAGE   // falls Gewichtssprünge auftreten, können diese hier abgefangen werden
                                   // Achtung, kann den Wägeprozess verlangsamen. Vorher Hardware prüfen.
@@ -427,6 +428,10 @@ int color_marker = 2;               // Farbe für den Marker für das TFT Displa
 int ota_done = 0;                   // Variable für OTA Update
 int use_turntable = 0;              // 0 = Drehteller wird nicht benützt, 1 = Drehteller wird benützt
 bool turntable_init = false;        // false = Drehteller Init nicht gemacht, true = Drehteller Init wurde gemacht.
+bool turntable_moving = false;
+bool drop_prodection = false;       // false = Tropfschutz ist offen, true = Tropfschutz ist zu
+bool turntable_ok = true;           // true wenn Glass verschoben und Tropfschutz offen ist. Wenn Drehteller nicht benützt wird ist der Wert default auf true
+bool turntable_init_check = true;
 bool esp_now_ini = false;           // true wenn esp now aktive ist
 char esp_now_textMsg[] = "";        // send String für ESP NOW 
 bool esp_now_msg_recived = false;   // true wenn etwas empfangen wurde
@@ -521,8 +526,8 @@ unsigned long  MARKER;
     Serial.print("Send status: ");
     Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success":"Fail");
   #endif
-}
-
+  drop_prodection = true;
+  }
   void messageReceived(const uint8_t* macAddr, const uint8_t* incomingData, int len){
     memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
     memcpy(&myReceivedMessage, incomingData, sizeof(myReceivedMessage));
@@ -3291,25 +3296,57 @@ void setupLanguage(void) {
 }
 
 void setupDrehteller(void) {
+  //Start Menue
   #if DREHTELLER == 1
     int x_pos;
     int k = 0;
     unsigned long time;
-    int menuitem;
-    int MenuepunkteAnzahl = 7;
-    int last_menu_pos = 0;
-    const char *menuepunkte[MenuepunkteAnzahl - 1] = {TURNTABLE[lingo], INIT_TURNTABLE[lingo], ADJUST_JAR_POS[lingo], MOVE_JAR[lingo], SPEED_INIT[lingo], SPEED_RUN[lingo], SAVE[lingo]};
+    int menuitem_1;
+    int MenuepunkteAnzahl_1 = 3;
+    int last_menu_pos_1 = 0;
+    const char *menuepunkte_1[MenuepunkteAnzahl_1 - 1] = {TURNTABLE[lingo], INIT_TURNTABLE[lingo], SAVE[lingo]};
+    int menuitem_2;
+    int MenuepunkteAnzahl_2 = 4;
+    int last_menu_pos_2 = 0;
+    const char *menuepunkte_2[MenuepunkteAnzahl_2 - 1] = {TURNTABLE[lingo], SETUP_TURNTABLE[lingo], SETUP_DROPPRODECTION[lingo], SAVE[lingo]};
+    int menuitem_3;
+    int MenuepunkteAnzahl_3 = 5;
+    int last_menu_pos_3 = 0;
+    const char *menuepunkte_3[MenuepunkteAnzahl_3 - 1] = {MOVE_JAR[lingo], CENTER_JAR[lingo], SPEED_INIT[lingo], SPEED_RUN[lingo], SAVE[lingo]};
+    int menuitem_4;
+    int MenuepunkteAnzahl_4 = 7;
+    int last_menu_pos_4 = 0;
+    const char *menuepunkte_4[MenuepunkteAnzahl_4 - 1] = {OPEN_DROPPROTECTION[lingo], CLOSE_DROPPROTECTION[lingo], SPEED_DROPPROTECTION[lingo], WAIT_TO_OPEN_DP[lingo], DP_MIN_ANGLE[lingo], DP_MAX_ANGLE[lingo], SAVE[lingo]};
     int last_use_turntable = use_turntable;
     bool wert_aendern = false;
     bool turntable_running = false;
+    bool center_jar_running = false;
+    bool ts_open_running = false;
+    bool ts_close_running = false;
+    bool ts_angle_running = false;
     unsigned long turntable_millis;
     unsigned long prev_millis = 0;
     bool esp_now_change = true;
     int speed_init = 0;
     int speed_run = 0;
+    int jar_center_pos = 0;
     int speed_init_old = 0;
     int speed_run_old = 0;
+    int jar_center_pos_old = 0;
+    int move_steps = 50;
+    int move_vale = 0;
+    int ts_angle_min = 0;
+    int ts_angle_max = 180;
+    int ts_waittime = 0;
+    int ts_speed = 0;
+    int ts_angle_min_old = 0;
+    int ts_angle_max_old = 180;
+    int ts_waittime_old = 0;
+    int ts_speed_old = 0;
+    int ts_angle_min_start = 0;
+    int ts_angle_max_start = 0;
     String esp_now_wait = "";
+    esp_now_msg_recived = false;
     #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
       int y_offset = 8;
     #endif
@@ -3317,30 +3354,36 @@ void setupDrehteller(void) {
       int y_offset_tft = 28;
       bool change = false;
       int wert_old = -1;
+      String esp_now_wait_old = "...";
       gfx->fillScreen(BACKGROUND);
       gfx->setTextColor(TEXT);
       gfx->setFont(Punk_Mono_Bold_240_150);
-      x_pos = CenterPosX(TURNTABLE, 14, 320);
+      x_pos = CenterPosX(TURNTABLE[lingo], 14, 320);
       gfx->setCursor(x_pos, 25);
-      gfx->println(TURNTABLE);
+      gfx->println(TURNTABLE[lingo]);
       gfx->drawLine(0, 30, 320, 30, TEXT);
     #endif
-    initRotaries(SW_MENU, 0, 0, MenuepunkteAnzahl -1, 1);
+    initRotaries(SW_MENU, 0, 0, MenuepunkteAnzahl_1 -1, 1);
+    //Init Turntable
     turntable_init = false;
+    esp_now_msg_recived = false;
+    memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+    memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
     strcpy(myMessageToBeSent.text, "check");
     espnow_send_data();
     time = millis();
-    while (!esp_now_msg_recived and millis() - time <= 1000) {
+    while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
       delay(10);
     }
-    if(strcmp(myReceivedMessage.text, "ok") == 0 or strcmp(myReceivedMessage.text, "nok") == 0) {
-      if(strcmp(myReceivedMessage.text, "ok") == 0) {
+    if(strcmp(myReceivedMessage.text, "ok_init") == 0 or strcmp(myReceivedMessage.text, "nok_init") == 0) {
+      if(strcmp(myReceivedMessage.text, "ok_init") == 0) {
         turntable_init = true;
       }
       i = 1;
     }
     else {
       i = 0;
+      esp_now_msg_recived = false;
       #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
         u8g2.clearBuffer();
         u8g2.setFont(u8g2_font_courB08_tf);
@@ -3364,62 +3407,39 @@ void setupDrehteller(void) {
       #endif
       delay(4000);
     }
-    if (i == 1) {
-      esp_now_msg_recived = false;
-      memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-      strcpy(myMessageToBeSent.text, "speed_init");
-      espnow_send_data();
-      turntable_millis = millis();
-      while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
-        delay(10);
-      }
-      speed_init = speed_init_old = myReceivedMessage.value;
-      esp_now_msg_recived = false;
-      memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-      strcpy(myMessageToBeSent.text, "speed_run");
-      espnow_send_data();
-      turntable_millis = millis();
-      while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
-        delay(10);
-      }
-      speed_run = speed_run_old = myReceivedMessage.value;
-    }
     while (i > 0) {
-      if ((digitalRead(button_stop_pin) == HIGH and turntable_running == false) or digitalRead(switch_setup_pin) == LOW) {
-        while (digitalRead(button_stop_pin) == HIGH) {
-          delay(1);
+      //Menue 1
+      while (i == 1) {
+        if (turntable_init == true) {
+          i = 2;
+          initRotaries(SW_MENU, 0, 0, MenuepunkteAnzahl_2 -1, 1);
+          esp_now_msg_recived = false;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->fillRect(0, 32, 320, 208, BACKGROUND);
+          #endif
+          break;
         }
-        esp_now_msg_recived = false;
-        use_turntable = last_use_turntable;
-        rotary_select = SW_MENU;
-        speed_run = speed_run_old;
-        speed_init = speed_init_old;
-        modus = -1;
-        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-        memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
-        return;
-      }
-      if (esp_now_msg_recived == true and strcmp(myReceivedMessage.text, "init_error") == 0) {
-        esp_now_msg_recived = false;
-        turntable_init = false;
-        turntable_running = false;
-        turntable_millis = 0;
-        prev_millis = 0;
-        esp_now_wait = "";
-        initRotaries(SW_MENU, 1, 0, 1, 1);
-        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-          esp_now_change = true;
-        #endif
-      }
-      if (turntable_running == true) { //hier noch die ganze Abfrage der Rückgabe vom Drehteller
-        initRotaries(SW_MENU, last_menu_pos, 0, MenuepunkteAnzahl - 1, 1);                             //Wenn einer am rotary dreht wider zurücksetzen
-        if (millis() - turntable_millis > 60000 or digitalRead(button_stop_pin) == HIGH) {             //Timeaut, wenn der Befehl nicht in 60s geschaft wird oder Abbrechen wenn Stop Taste gedrückt wird
+        if ((digitalRead(button_stop_pin) == HIGH and turntable_running == false) or digitalRead(switch_setup_pin) == LOW) {
           while (digitalRead(button_stop_pin) == HIGH) {
             delay(1);
           }
-          strcpy(myMessageToBeSent.text, "stop");
-          espnow_send_data();
+          esp_now_msg_recived = false;
+          use_turntable = last_use_turntable;
+          rotary_select = SW_MENU;
+          modus = -1;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+          return;
+        }
+        if (esp_now_msg_recived == true and strcmp(myReceivedMessage.text, "init_error") == 0) {
+          esp_now_msg_recived = false;
           turntable_init = false;
           turntable_running = false;
           turntable_millis = 0;
@@ -3431,520 +3451,1120 @@ void setupDrehteller(void) {
             esp_now_change = true;
           #endif
         }
-        else if (millis() - prev_millis > 1000 and (turntable_init == 1 or menuitem == 1)) {
-          prev_millis = millis();
-          if (esp_now_wait.length() < 3) {esp_now_wait = esp_now_wait + ".";}
-          else {esp_now_wait = "";}
-          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-            esp_now_change = true;
-          #endif
-        }
-        if (esp_now_msg_recived == true) {
-          if (last_menu_pos == 1) {
-            if(strcmp(myReceivedMessage.text, "ok") == 0) {
-              turntable_init = true;
-            }
-            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-              esp_now_change = true;
-            #endif
-          }
-          //Werte zurücksetzen
-          esp_now_msg_recived = false;
-          turntable_running = false;
-          turntable_millis = 0;
-          esp_now_wait = "";
-          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-        }
-        if (turntable_running == false) {
-          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-            gfx->fillRect(271, 27+((last_menu_pos+1) * y_offset_tft)-19, 44, 27, BACKGROUND);
-          #endif
-        }
-      }
-      if (wert_aendern == false) {
-        menuitem = getRotariesValue(SW_MENU);
-        if (use_turntable == 0) {
-          initRotaries(SW_MENU, menuitem, 0, 1, 1);
-        }
-        else if (turntable_init == false) {
-          initRotaries(SW_MENU, menuitem, 0, 2, 1);
-        }
-        else {
-          initRotaries(SW_MENU, menuitem, 0, MenuepunkteAnzahl - 1, 1);
-        }
-        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-          pos = menuitem;
-          if ((use_turntable == 0 and menuitem == 1) or (menuitem == 2 and use_turntable == 1 and turntable_init == false)) {
-            pos = MenuepunkteAnzahl -1;
-          }
-        #endif
-        if (menuitem == MenuepunkteAnzahl - 1 or (use_turntable == 0 and menuitem == 1) or (turntable_init == false and menuitem == 2)) {
-          menuitem = 7;
-        }
-      }
-      else {
-        switch (menuitem) {
-          case 0: use_turntable = getRotariesValue(SW_MENU);
-                  break;
-          case 1: //do nothing;
-                  break;
-          case 2: //do nothing;
-                  break;
-          case 3: //do nothing;
-                  break;
-          case 4: speed_init = getRotariesValue(SW_MENU);
-                  break;
-          case 5: speed_run = getRotariesValue(SW_MENU);
-                  break;
-        }
-      }
-      #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
-        u8g2.clearBuffer();
-        u8g2.setFont(u8g2_font_courB08_tf);
-        u8g2.setCursor(10, 1 * y_offset);
-        u8g2.print(menuepunkte[0]);
-        u8g2.setCursor(105, 1 * y_offset);
-        sprintf(ausgabe,"%3s", (use_turntable==0?OFF:ON));
-        u8g2.print(ausgabe);
-        if (use_turntable == 1) {
-          u8g2.setCursor(10, 2 * y_offset);
-          u8g2.print(menuepunkte[1]);
-          if (last_menu_pos == 1 and turntable_running == true) {
-            u8g2.setCursor(105, 2 * y_offset);
-            u8g2.print(esp_now_wait);
-          }
-          else {
-            u8g2.setCursor(105, 2 * y_offset);
-            sprintf(ausgabe,"%3s", (turntable_init==false?NOKAY:OKKAY));
-            u8g2.print(ausgabe);
-          }
-          if (turntable_init == true) {
-            u8g2.setCursor(10, 3 * y_offset);
-            u8g2.print(menuepunkte[2]);
-            u8g2.setCursor(10, 4 * y_offset);
-            u8g2.print(menuepunkte[3]);
-            if (last_menu_pos == 3) {
-              u8g2.setCursor(107, 4 * y_offset);
-              u8g2.print(esp_now_wait);
-            }
-            u8g2.setCursor(10, 5 * y_offset);
-            u8g2.print(menuepunkte[4]);
-            u8g2.setCursor(105, 5 * y_offset);
-            sprintf(ausgabe,"%3i", speed_init);
-            u8g2.print(ausgabe);
-            u8g2.setCursor(10, 6 * y_offset);
-            u8g2.print(menuepunkte[5]);
-            u8g2.setCursor(105, 6 * y_offset);
-            sprintf(ausgabe,"%3i", speed_run);
-            u8g2.print(ausgabe);
-          }
-        }
-        u8g2.setCursor(10, (7 * y_offset) + 5);
-        u8g2.print(menuepunkte[6]);
-        if (wert_aendern == false && menuitem < MenuepunkteAnzahl - 1) {
-          u8g2.setCursor(1, 10+((menuitem)*y_offset)); u8g2.print("*");
-        }
-        else if (wert_aendern == true && menuitem < MenuepunkteAnzahl - 1) {
-          u8g2.setCursor(1, 8+((menuitem)*y_offset)); u8g2.print("-");
-        }
-        else if (wert_aendern == false && menuitem == 7) {
-          u8g2.setCursor(1, 10+((menuitem - 1)*y_offset) + 5); u8g2.print("*");
-        }
-        u8g2.sendBuffer();
-      #endif
-      #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-        int j = 0;
-        while(j < MenuepunkteAnzahl) {
-          gfx->setTextColor(TEXT);
-          if (j == pos and wert_aendern == false) {
-            gfx->setTextColor(MARKER);
-          }
-          if (j < MenuepunkteAnzahl - 1 and use_turntable == 1 and turntable_init == true
-              or j == 0 and use_turntable == 0
-              or j <= 1 and use_turntable == 1 and turntable_init == false) {
-            gfx->setCursor(5, 30+((j+1) * y_offset_tft));
-            gfx->print(menuepunkte[j]);
-            if (j == pos and wert_aendern == true) {
-              gfx->setTextColor(MARKER);
-            }
-            switch (j) {
-              case 0: sprintf(ausgabe,"%s", use_turntable==false?OFF:ON);
-                      if (wert_old != use_turntable and wert_aendern == true and j == pos) {
-                        change = true;
-                        esp_now_change = true;
-                        wert_old = use_turntable;
-                      }
-                      break;
-              case 1: sprintf(ausgabe,"");
-                      break;
-              case 2: sprintf(ausgabe,"");
-                      break;
-              case 3: sprintf(ausgabe,"");
-                      break;
-              case 4: sprintf(ausgabe,"%i", speed_init);
-                      if (wert_old != speed_init and wert_aendern == true and j == pos) {
-                        change = true;
-                        esp_now_change = true;
-                        wert_old = speed_init;
-                      }
-                      break;
-              case 5: sprintf(ausgabe,"%i", speed_run);
-                      if (wert_old != speed_run and wert_aendern == true and j == pos) {
-                        change = true;
-                        esp_now_change = true;
-                        wert_old = speed_run;
-                      }
-                      break;
-            }
-            if (change) {
-              gfx->fillRect(271, 27+((j+1) * y_offset_tft)-19, 44, 27, BACKGROUND);
-              if (use_turntable == 0) {
-                gfx->fillRect(0, 67, 320, 130, BACKGROUND);
-              }
-              change = false;
-            }
-            int y = get_length(ausgabe);
-            gfx->setCursor(320 - y * 14 - 5, 30+((j+1) * y_offset_tft));
-            gfx->print(ausgabe);
-          }
-          else if (j == MenuepunkteAnzahl - 1) {
-            gfx->setCursor(5, 30+(7 * y_offset_tft));
-            gfx->print(menuepunkte[j]);
-          }
-          if (turntable_running == true and esp_now_change == true) {
-            esp_now_change = false;
-            gfx->fillRect(271, 27+((last_menu_pos+1) * y_offset_tft)-19, 44, 27, BACKGROUND);
-            gfx->setCursor(273, 30+((last_menu_pos + 1) * y_offset_tft));
-            gfx->print(esp_now_wait);
-          }
-          else if (turntable_running == false and j == 1 and use_turntable == 1 and esp_now_change == true) {
-            esp_now_change = false;
-            gfx->setTextColor(TEXT);
-            if (turntable_init == false) {
-              gfx->fillRect(0, 27+((j+2) * y_offset_tft)-19, 320, 110, BACKGROUND);
-            }
-            gfx->fillRect(271, 27+((j+1) * y_offset_tft)-19, 44, 27, BACKGROUND);
-            sprintf(ausgabe,"%s", turntable_init==false?NOKAY:OKKAY);
-            int y = get_length(ausgabe);
-            gfx->setCursor(320 - y * 14 - 5, 30+((j+1) * y_offset_tft));
-            gfx->print(ausgabe);
-          }
-          j++;
-        }
-      #endif
-      // Menupunkt zum ändern ausgewählt
-      if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < MenuepunkteAnzahl - 1  && wert_aendern == false) {
-        while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-          delay(1);
-        }
-        last_menu_pos = menuitem;
-        switch (menuitem) {
-          case 0: rotary_select = SW_MENU;
-                  initRotaries(SW_MENU, use_turntable, 0, 1, 1);
-                  break;
-          case 1: turntable_running = true;
-                  turntable_millis = millis();
-                  esp_now_msg_recived = false;
-                  strcpy(myMessageToBeSent.text, "init");
-                  espnow_send_data();
-                  break;
-          case 2: i = 2;
-                  break;
-          case 3: turntable_running = true;
-                  turntable_millis = millis();
-                  esp_now_msg_recived = false;
-                  strcpy(myMessageToBeSent.text, "move_jar");
-                  espnow_send_data();
-                  break;
-          case 4: rotary_select = SW_MENU;
-                  initRotaries(SW_MENU, speed_init, 100, 600, 50);
-                  break;
-          case 5: rotary_select = SW_MENU;
-                  initRotaries(SW_MENU, speed_run, 100, 600, 50);
-                  break;
-        }
-        wert_old = -1;
-        wert_aendern = true;
-      }
-      // Änderung im Menupunkt übernehmen
-      if ((digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < MenuepunkteAnzahl - 1  && wert_aendern == true) or (turntable_running == true and wert_aendern == true)) {
-        while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-          delay(1);
-        }
-        rotary_select = SW_MENU;
-        initRotaries(SW_MENU, menuitem, 0, MenuepunkteAnzahl - 1, 1);
-        wert_aendern = false;
-      }
-      // Menu verlassen
-      if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem == 7) {
-        while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-          delay(1);
-        }
-        if (speed_init != speed_init_old) {
-          strcpy(myMessageToBeSent.text, "speed_init_save");
-          myMessageToBeSent.value = speed_init;
-          espnow_send_data();
-        }
-        if (speed_run != speed_run_old) {
-          strcpy(myMessageToBeSent.text, "speed_run_save");
-          myMessageToBeSent.value = speed_run;
-          espnow_send_data();
-        }
-        #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
-          u8g2.setCursor(111, (menuitem * y_offset) + 5);
-          u8g2.print("OK");
-          u8g2.sendBuffer();
-        #endif
-        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-          gfx->setCursor(283, 30+(7 * y_offset_tft));
-          gfx->print("OK");
-        #endif
-        delay(1000);
-        i = 0;
-      }
-      //Glas Pos. anpassen
-      if (i == 2) {
-        int MenuepunkteAnzahl1 = 3;
-        const char *menuepunkte1[MenuepunkteAnzahl1 - 1] = {STEPS, MOVE_POS, SAVE};
-        initRotaries(SW_MENU, 0, 0, MenuepunkteAnzahl1 -1, 1);
-        wert_aendern = false;
-        bool move_jar = false;
-        int steps = 100;
-        int pos_jar_steps = 0;
-        int pos_jar_steps_old = 0;
-        esp_now_msg_recived = false;
-        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-          int y_offset_tft = 28;
-          change = false;
-          int wert_old = -1;
-          gfx->fillScreen(BACKGROUND);
-          gfx->setTextColor(TEXT);
-          gfx->setFont(Punk_Mono_Bold_240_150);
-          x_pos = CenterPosX(TURNTABLE, 14, 320);
-          gfx->setCursor(x_pos, 25);
-          gfx->println(TURNTABLE);
-          gfx->drawLine(0, 30, 320, 30, TEXT);
-        #endif
-        while (i == 2) {
-          if (wert_aendern == false) {
-            menuitem = getRotariesValue(SW_MENU);
-            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-              pos = menuitem;
-            #endif
-            if (menuitem == MenuepunkteAnzahl1 - 1) {
-              menuitem = 7;
-            }
-          }
-          else {
-            switch (menuitem) {
-              case 0: steps = step2steps(getRotariesValue(SW_MENU));
-                      break;
-              case 1: if (getRotariesValue(SW_MENU) != 1) {
-                        turntable_init = false;
-                        move_jar = true;
-                      }
-                      break;
-            }
-          }
-          if (move_jar == true) {
-            int move_vale = 0;
-            move_jar = false;
-            pos_jar_steps_old = pos_jar_steps;
-            if (getRotariesValue(SW_MENU) == 2) {
-              pos_jar_steps = pos_jar_steps + steps;
-              move_vale = steps;
-            }
-            else if (getRotariesValue(SW_MENU) == 0) {
-              if (pos_jar_steps - steps >= 0) {
-                pos_jar_steps = pos_jar_steps - steps;
-                move_vale = steps * -1;
-              }
-              else {
-                if (pos_jar_steps > 0) {
-                  move_vale = -pos_jar_steps;
-                }
-                else {
-                  move_vale = 0;
-                }
-                pos_jar_steps = 0;
-              }
-            }
-            setRotariesValue(SW_MENU, 1);
-            strcpy(myMessageToBeSent.text, "move_pos");
-            myMessageToBeSent.value = 2 * move_vale;  //Ein Step braucht zwei Tackte
-            espnow_send_data();
-            turntable_millis = millis();
-            while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
-              delay(10);
-            }
-            if(strcmp(myReceivedMessage.text, "ok") != 0) { // es kamm kein ok vom Drehteller zurück
-              pos_jar_steps = pos_jar_steps_old;
-            }
-            esp_now_msg_recived = false;
-          }
-          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
-            u8g2.clearBuffer();
-            u8g2.setFont(u8g2_font_courB08_tf);
-            u8g2.setCursor(10, 1 * y_offset);
-            u8g2.print(menuepunkte1[0]);
-            u8g2.setCursor(100, 1 * y_offset);
-            sprintf(ausgabe,"%4i", steps);
-            u8g2.print(ausgabe);
-            u8g2.setCursor(10, 2 * y_offset);
-            u8g2.print(menuepunkte1[1]);
-            if (wert_aendern == true and menuitem == 1) {
-              u8g2.setCursor(10, 4 * y_offset);
-              u8g2.print(POSITION);
-              u8g2.setCursor(100, 4 * y_offset);
-              sprintf(ausgabe,"%4i", pos_jar_steps);
-              u8g2.print(ausgabe);
-            }
-            u8g2.setCursor(10, (7 * y_offset) + 5);
-            u8g2.print(menuepunkte1[2]);
-            if (wert_aendern == false && menuitem < MenuepunkteAnzahl1 - 1) {
-              u8g2.setCursor(1, 10+((menuitem)*y_offset)); u8g2.print("*");
-            }
-            else if (wert_aendern == true && menuitem < MenuepunkteAnzahl1 - 1) {
-              u8g2.setCursor(1, 8+((menuitem)*y_offset)); u8g2.print("-");
-            }
-            else if (wert_aendern == false && menuitem == 7) {
-              u8g2.setCursor(1, 10+((menuitem - 1)*y_offset) + 5); u8g2.print("*");
-            }
-            u8g2.sendBuffer();
-          #endif
-          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-            int j = 0;
-            while(j < MenuepunkteAnzahl1) {
-              gfx->setTextColor(TEXT);
-              if (j == pos and wert_aendern == false) {
-                gfx->setTextColor(MARKER);
-              }
-              if (j < MenuepunkteAnzahl1 - 1) {
-                gfx->setCursor(5, 30+((j+1) * y_offset_tft));
-                gfx->print(menuepunkte1[j]);
-                if (wert_aendern == true and j == 1) {
-                  gfx->setCursor(5, 30+((j+3) * y_offset_tft));
-                  gfx->print(POSITION);
-                }
-                if (j == pos and wert_aendern == true) {
-                  gfx->setTextColor(MARKER);
-                }
-                switch (j) {
-                  case 0: sprintf(ausgabe,"%4i", steps);
-                          if (wert_old != steps and wert_aendern == true and j == pos) {
-                            change = true;
-                            wert_old = steps;
-                          }
-                          break;
-                  case 1: sprintf(ausgabe,"%4i", pos_jar_steps);
-                          if (wert_old != pos_jar_steps and wert_aendern == true and j == pos) {
-                            change = true;
-                            wert_old = pos_jar_steps;
-                          }
-                          break;
-                }
-                if (change) {
-                  if (j == 1) {
-                    gfx->fillRect(251, 27+((j+3) * y_offset_tft)-19, 64, 27, BACKGROUND);
-                  }
-                  else {
-                    gfx->fillRect(271, 27+((j+1) * y_offset_tft)-19, 44, 27, BACKGROUND);
-                  }
-                  change = false;
-                }
-                int y = get_length(ausgabe);
-                if (j == 1 and wert_aendern == true) {
-                  gfx->setCursor(320 - y * 14 - 5, 30+((j+3) * y_offset_tft));
-                  gfx->print(ausgabe);
-                }
-                else if (j != 1) {
-                  gfx->setCursor(320 - y * 14 - 5, 30+((j+1) * y_offset_tft));
-                  gfx->print(ausgabe);
-                }
-              }
-              else if (j == MenuepunkteAnzahl1 - 1) {
-                gfx->setCursor(5, 30+(7 * y_offset_tft));
-                gfx->print(menuepunkte1[j]);
-              }
-              j++;
-            }
-          #endif
-          // Menupunkt zum ändern ausgewählt
-          if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < MenuepunkteAnzahl - 1  && wert_aendern == false) {
-            while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-              delay(1);
-            }
-            last_menu_pos = menuitem;
-            switch (menuitem) {
-              case 0: rotary_select = SW_MENU;
-                      initRotaries(SW_MENU, steps2step(steps) , 5, 45, 1);
-                      break;
-              case 1: rotary_select = SW_MENU;
-                      initRotaries(SW_MENU, 1, 0, 2, 1);
-                      break;
-            }
-            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-              wert_old = -1;
-            #endif
-            wert_aendern = true;
-          }
-          // Änderung im Menupunkt übernehmen
-          if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < MenuepunkteAnzahl1 - 1) {
-            while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-              delay(1);
-            }
-            rotary_select = SW_MENU;
-            initRotaries(SW_MENU, menuitem, 0, MenuepunkteAnzahl1 - 1, 1);
-            wert_aendern = false;
-          }
-          //Menü verlassen. Sende Wert an Drehteller
-          if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem == 7) {
-            while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-              delay(1);
-            }
-            turntable_millis = 0;
-            wert_aendern = false;
-            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-              esp_now_change = true;
-            #endif
-            strcpy(myMessageToBeSent.text, "pos_jar_steps_save");
-            myMessageToBeSent.value = 2 * pos_jar_steps;
-            espnow_send_data();
-            #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
-              u8g2.setCursor(111, (menuitem * y_offset) + 5);
-              u8g2.print("OK");
-              u8g2.sendBuffer();
-            #endif
-            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-              gfx->setCursor(283, 30+(7 * y_offset_tft));
-              gfx->print("OK");
-            #endif
-            delay(1000);
-            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-              gfx->fillRect(0, 34, 320, 246, BACKGROUND);
-            #endif
-            setRotariesValue(SW_MENU, 2);
-            i = 1;
-          }
-          if ((digitalRead(button_stop_pin) == HIGH and turntable_running == false) or digitalRead(switch_setup_pin) == LOW) {
+        if (turntable_running == true) {
+          initRotaries(SW_MENU, last_menu_pos_1, 0, MenuepunkteAnzahl_1 - 1, 1);                         //Wenn einer am rotary dreht wider zurücksetzen
+          if (millis() - turntable_millis > 60000 or digitalRead(button_stop_pin) == HIGH) {             //Timeaut, wenn der Befehl nicht in 60s geschaft wird oder Abbrechen wenn Stop Taste gedrückt wird
             while (digitalRead(button_stop_pin) == HIGH) {
               delay(1);
             }
-            wert_aendern = false;
+            strcpy(myMessageToBeSent.text, "stop");
+            espnow_send_data();
+            turntable_init = false;
+            turntable_running = false;
+            turntable_millis = 0;
+            prev_millis = 0;
+            esp_now_wait = "";
+            initRotaries(SW_MENU, 1, 0, 1, 1);
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
             #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
               esp_now_change = true;
-              gfx->fillRect(0, 34, 320, 246, BACKGROUND);
             #endif
-            modus = -1;
-            rotary_select = SW_MENU;
-            if (turntable_init == false) {
-              setRotariesValue(SW_MENU, 1);
+          }
+          else if (millis() - prev_millis > 1000 and (turntable_init == 1 or menuitem_1 == 1)) {
+            prev_millis = millis();
+            if (esp_now_wait.length() < 3) {esp_now_wait = esp_now_wait + ".";}
+            else {esp_now_wait = "";}
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              esp_now_change = true;
+            #endif
+          }
+          if (esp_now_msg_recived == true) {
+            if (last_menu_pos_1 == 1) {
+              if(strcmp(myReceivedMessage.text, "ok_init_done") == 0) {
+                turntable_init = true;
+              }
+              #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+                esp_now_change = true;
+              #endif
+            }
+            //Werte zurücksetzen
+            esp_now_msg_recived = false;
+            turntable_running = false;
+            turntable_millis = 0;
+            esp_now_wait = "";
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          }
+        }
+        if (wert_aendern == false) {
+          menuitem_1 = getRotariesValue(SW_MENU);
+          if (use_turntable == 0) {
+            initRotaries(SW_MENU, menuitem_1, 0, 1, 1);
+          }
+          else {
+            initRotaries(SW_MENU, menuitem_1, 0, MenuepunkteAnzahl_1 - 1, 1);
+          }
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            pos = menuitem_1;
+            if ((use_turntable == 0 and menuitem_1 == 1) or (menuitem_1 == 2 and use_turntable == 1 and turntable_init == false)) {
+              pos = MenuepunkteAnzahl_1 -1;
+            }
+          #endif
+          if (menuitem_1 == MenuepunkteAnzahl_1 - 1 or (use_turntable == 0 and menuitem_1 == 1) or (turntable_init == false and menuitem_1 == 2)) {
+            menuitem_1 = 7;
+          }
+        }
+        else {
+          switch (menuitem_1) {
+            case 0: use_turntable = getRotariesValue(SW_MENU);
+                    break;
+          }
+        }
+        #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+          u8g2.clearBuffer();
+          u8g2.setFont(u8g2_font_courB08_tf);
+          u8g2.setCursor(10, 1 * y_offset);
+          u8g2.print(menuepunkte_1[0]);
+          u8g2.setCursor(105, 1 * y_offset);
+          sprintf(ausgabe,"%3s", (use_turntable==0?OFF:ON));
+          u8g2.print(ausgabe);
+          if (use_turntable == 1 and turntable_init == false) {
+            u8g2.setCursor(10, 2 * y_offset);
+            u8g2.print(menuepunkte_1[1]);
+            if (last_menu_pos_1 == 1 and turntable_running == true) {
+              u8g2.setCursor(105, 2 * y_offset);
+              u8g2.print(esp_now_wait);
             }
             else {
-              setRotariesValue(SW_MENU, 2);
+              u8g2.setCursor(105, 2 * y_offset);
+              sprintf(ausgabe,"%3s", (turntable_init==false?NOKAY:OKKAY));
+              u8g2.print(ausgabe);
             }
-            i = 1;
           }
+          u8g2.setCursor(10, (7 * y_offset) + 5);
+          u8g2.print(menuepunkte_1[2]);
+          if (wert_aendern == false && menuitem_1 < MenuepunkteAnzahl_1 - 1) {
+            u8g2.setCursor(1, 10+((menuitem_1)*y_offset)); u8g2.print("*");
+          }
+          else if (wert_aendern == true && menuitem_1 < MenuepunkteAnzahl_1 - 1) {
+            u8g2.setCursor(1, 8+((menuitem_1)*y_offset)); u8g2.print("-");
+          }
+          else if (wert_aendern == false && menuitem_1 == 7) {
+            u8g2.setCursor(1, 10+((menuitem_1 - 1)*y_offset) + 5); u8g2.print("*");
+          }
+          u8g2.sendBuffer();
+        #endif
+        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+          int j = 0;
+          while(j < MenuepunkteAnzahl_1) {
+            gfx->setTextColor(TEXT);
+            if (j == pos and wert_aendern == false) {
+              gfx->setTextColor(MARKER);
+            }
+            if (j < MenuepunkteAnzahl_1 - 1) {
+                gfx->setCursor(5, 30+((j+1) * y_offset_tft));
+                gfx->print(menuepunkte_1[j]);
+              if (j == pos and wert_aendern == true) {
+                gfx->setTextColor(MARKER);
+              }
+              switch (j) {
+                case 0: sprintf(ausgabe,"%s", use_turntable==false?OFF:ON);
+                        if (wert_old != use_turntable and wert_aendern == true and j == pos) {
+                          change = true;
+                          wert_old = use_turntable;
+                        }
+                        break;
+                case 1: sprintf(ausgabe,"");
+                        if (turntable_running == false and use_turntable == true) {
+                          sprintf(ausgabe,"%s", turntable_init==false?NOKAY:OKKAY);
+                        }
+                        else if (esp_now_wait_old != esp_now_wait and turntable_running == true and turntable_init == false) {
+                          sprintf(ausgabe,"%s", esp_now_wait);
+                          esp_now_wait_old = esp_now_wait;
+                          esp_now_change = true;
+                        }
+                        break;
+              }
+              if (change or esp_now_change) {
+                gfx->fillRect(251, 27+((j+1) * y_offset_tft)-19, 64, 27, BACKGROUND);
+                if (use_turntable == false) {
+                  gfx->fillRect(0, 65, 320, 135, BACKGROUND);
+                }
+                change = false;
+                esp_now_change = false;
+              }
+              int y = get_length(ausgabe);
+              gfx->setCursor(320 - y * 14 - 5, 30+((j+1) * y_offset_tft));
+              gfx->print(ausgabe);
+            }
+            else {
+              gfx->setCursor(10, 30+(7 * y_offset_tft));
+              gfx->print(menuepunkte_1[j]);
+            }
+            if (use_turntable == false) {j++;}
+            j++;
+          }
+        #endif
+        // Menupunkt zum ändern ausgewählt
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_1 < MenuepunkteAnzahl_1 - 1  && wert_aendern == false) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          last_menu_pos_1 = menuitem_1;
+          switch (menuitem_1) {
+            case 0: rotary_select = SW_MENU;
+                    initRotaries(SW_MENU, use_turntable, 0, 1, 1);
+                    break;
+            case 1: if (turntable_init == false) {
+                      turntable_running = true;
+                      turntable_millis = millis();
+                      esp_now_msg_recived = false;
+                      strcpy(myMessageToBeSent.text, "init");
+                      espnow_send_data();
+                    }
+                    break;
+          }
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            wert_old = -1;
+          #endif
+          wert_aendern = true;
+        }
+        // Änderung im Menupunkt übernehmen
+        if ((digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_1 < MenuepunkteAnzahl_1 - 1  && wert_aendern == true) or (turntable_running == true and wert_aendern == true)) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          rotary_select = SW_MENU;
+          initRotaries(SW_MENU, menuitem_1, 0, MenuepunkteAnzahl_1 - 1, 1);
+          wert_aendern = false;
+        }
+        // Menu verlassen
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_1 == 7 && turntable_running == false) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.setCursor(111, (menuitem_1 * y_offset) + 5);
+            u8g2.print("OK");
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->setCursor(283, 30+(7 * y_offset_tft));
+            gfx->print("OK");
+          #endif
+          esp_now_msg_recived = false;
+          delay(1000);
+          i = 0;
+        }
+      }
+      while (i == 2) {
+        if (esp_now_msg_recived == true and strcmp(myReceivedMessage.text, "init_error") == 0) {
+          esp_now_msg_recived = false;
+          turntable_init = false;
+          turntable_running = false;
+          turntable_millis = 0;
+          prev_millis = 0;
+          esp_now_wait = "";
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            esp_now_wait_old = "...";
+          #endif
+        }
+        if (turntable_init == false) {
+          i = 1;
+          initRotaries(SW_MENU, 0, 0, MenuepunkteAnzahl_1 -1, 1);
+          esp_now_msg_recived = false;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->fillRect(0, 32, 320, 208, BACKGROUND);
+          #endif
+          break;
+        }
+        if ((digitalRead(button_stop_pin) == HIGH and turntable_running == false) or digitalRead(switch_setup_pin) == LOW) {
+          while (digitalRead(button_stop_pin) == HIGH) {
+            delay(1);
+          }
+          esp_now_msg_recived = false;
+          use_turntable = last_use_turntable;
+          rotary_select = SW_MENU;
+          modus = -1;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+          return;
+        }
+        if (wert_aendern == false) {
+          menuitem_2 = getRotariesValue(SW_MENU);
+          if (use_turntable == 0) {
+            initRotaries(SW_MENU, menuitem_2, 0, 1, 1);
+          }
+          else {
+            initRotaries(SW_MENU, menuitem_2, 0, MenuepunkteAnzahl_2 - 1, 1);
+          }
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            pos = menuitem_2;
+            if ((use_turntable == 0 and menuitem_2 == 1)) {
+              pos = MenuepunkteAnzahl_2 -1;
+            }
+          #endif
+          if (menuitem_2 == MenuepunkteAnzahl_2 - 1 or (use_turntable == 0 and menuitem_2 == 1)) {
+            menuitem_2 = 7;
+          }
+        }
+        else {
+          switch (menuitem_2) {
+            case 0: use_turntable = getRotariesValue(SW_MENU);
+                    break;
+          }
+        }
+        #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+          u8g2.clearBuffer();
+          u8g2.setFont(u8g2_font_courB08_tf);
+          u8g2.setCursor(10, 1 * y_offset);
+          u8g2.print(menuepunkte_2[0]);
+          u8g2.setCursor(105, 1 * y_offset);
+          sprintf(ausgabe,"%3s", (use_turntable==0?OFF:ON));
+          u8g2.print(ausgabe);
+          if (use_turntable == 1) {
+            u8g2.setCursor(10, 2 * y_offset);
+            u8g2.print(menuepunkte_2[1]);
+            u8g2.setCursor(10, 3 * y_offset);
+            u8g2.print(menuepunkte_2[2]);
+          }
+          u8g2.setCursor(10, (7 * y_offset) + 5);
+          u8g2.print(menuepunkte_2[3]);
+          if (wert_aendern == false && menuitem_2 < MenuepunkteAnzahl_2 - 1) {
+            u8g2.setCursor(1, 10+((menuitem_2)*y_offset)); u8g2.print("*");
+          }
+          else if (wert_aendern == true && menuitem_2 < MenuepunkteAnzahl_2 - 1) {
+            u8g2.setCursor(1, 8+((menuitem_2)*y_offset)); u8g2.print("-");
+          }
+          else if (wert_aendern == false && menuitem_2 == 7) {
+            u8g2.setCursor(1, 10+((menuitem_2 - 1)*y_offset) + 5); u8g2.print("*");
+          }
+          u8g2.sendBuffer();
+        #endif
+        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+          int j = 0;
+          while(j < MenuepunkteAnzahl_2) {
+            gfx->setTextColor(TEXT);
+            if (j == pos and wert_aendern == false) {
+              gfx->setTextColor(MARKER);
+            }
+            if (j < MenuepunkteAnzahl_2 - 1) {
+              gfx->setCursor(5, 30+((j+1) * y_offset_tft));
+              gfx->print(menuepunkte_2[j]);
+              if (j == pos and wert_aendern == true) {
+                gfx->setTextColor(MARKER);
+              }
+              switch (j) {
+                case 0: sprintf(ausgabe,"%s", use_turntable==false?OFF:ON);
+                        if (wert_old != use_turntable and wert_aendern == true and j == pos) {
+                          change = true;
+                          wert_old = use_turntable;
+                        }
+                        break;
+                case 1: sprintf(ausgabe,"");
+                        break;
+                case 2: sprintf(ausgabe,"");
+                        break;
+              }
+              if (change) {
+                gfx->fillRect(251, 27+((j+1) * y_offset_tft)-19, 64, 27, BACKGROUND);
+                if (use_turntable == false) {
+                  gfx->fillRect(0, 65, 320, 135, BACKGROUND);
+                }
+                change = false;
+              }
+              int y = get_length(ausgabe);
+              gfx->setCursor(320 - y * 14 - 5, 30+((j+1) * y_offset_tft));
+              gfx->print(ausgabe);
+            }
+            
+            else {
+              gfx->setCursor(10, 30+(7 * y_offset_tft));
+              gfx->print(menuepunkte_2[j]);
+            }
+            if (use_turntable == false) {j++;j++;}
+            j++;
+          }
+        #endif
+        // Menupunkt zum ändern ausgewählt
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_2 < MenuepunkteAnzahl_2 - 1  && wert_aendern == false) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          last_menu_pos_2 = menuitem_2;
+          switch (menuitem_2) {
+            case 0: rotary_select = SW_MENU;
+                    initRotaries(SW_MENU, use_turntable, 0, 1, 1);
+                    break;
+            case 1: i = 3;
+                    break;
+            case 2: i = 4;
+                    break;
+          }
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            wert_old = -1;
+          #endif
+          wert_aendern = true;
+          if (i == 3 or i == 4) {
+            menuitem_3 = pos = 0;
+            wert_aendern = false;
+            #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+              u8g2.clearBuffer();
+              u8g2.sendBuffer();
+            #endif
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              gfx->fillRect(0, 32, 320, 208, BACKGROUND);
+            #endif
+            break;
+          }
+        }
+        // Änderung im Menupunkt übernehmen
+        if ((digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_2 < MenuepunkteAnzahl_2 - 1  && wert_aendern == true)) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          rotary_select = SW_MENU;
+          initRotaries(SW_MENU, menuitem_2, 0, MenuepunkteAnzahl_2 - 1, 1);
+          wert_aendern = false;
+        }
+        // Menu verlassen
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_2 == 7) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.setCursor(111, (menuitem_2 * y_offset) + 5);
+            u8g2.print("OK");
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->setCursor(283, 30+(7 * y_offset_tft));
+            gfx->print("OK");
+          #endif
+          esp_now_msg_recived = false;
+          delay(1000);
+          i = 0;
+        }
+      }
+      if (i == 3) {
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "speed_init");
+        espnow_send_data();
+        turntable_millis = millis();
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+          delay(10);
+        }
+        speed_init = speed_init_old = myReceivedMessage.value;
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "speed_run");
+        espnow_send_data();
+        turntable_millis = millis();
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+          delay(10);
+        }
+        speed_run = speed_run_old = myReceivedMessage.value;
+        initRotaries(SW_MENU, menuitem_3, 0, MenuepunkteAnzahl_3 - 1, 1);
+      }
+      while (i == 3) {
+        if (esp_now_msg_recived == true and strcmp(myReceivedMessage.text, "init_error") == 0) {
+          esp_now_msg_recived = false;
+          turntable_init = false;
+          turntable_running = false;
+          center_jar_running = false;
+          turntable_millis = 0;
+          prev_millis = 0;
+          esp_now_wait = "";
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            esp_now_wait_old = "...";
+          #endif
+        }
+        if (turntable_init == false) {
+          i = 1;
+          initRotaries(SW_MENU, 0, 0, MenuepunkteAnzahl_1 -1, 1);
+          esp_now_msg_recived = false;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->fillRect(0, 32, 320, 208, BACKGROUND);
+          #endif
+          break;
+        }
+        if (digitalRead(button_stop_pin) == HIGH and turntable_running == false) {
+          while (digitalRead(button_stop_pin) == HIGH) {
+            delay(1);
+          }
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            wert_old = -1;
+          #endif
+          wert_aendern = false;
+          rotary_select = SW_MENU;
+          initRotaries(SW_MENU, menuitem_2, 0, MenuepunkteAnzahl_2 - 1, 1);
+          esp_now_msg_recived = false;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+          i = 2;
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->fillRect(0, 32, 320, 208, BACKGROUND);
+          #endif
+          break;
+        }
+        if (digitalRead(switch_setup_pin) == LOW) {
+          esp_now_msg_recived = false;
+          rotary_select = SW_MENU;
+          modus = -1;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+          return;
+        }
+        if (turntable_running == true) {
+          initRotaries(SW_MENU, last_menu_pos_3, 0, MenuepunkteAnzahl_3 - 1, 1);                         //Wenn einer am rotary dreht wider zurücksetzen
+          if (millis() - turntable_millis > 60000 or digitalRead(button_stop_pin) == HIGH) {             //Timeaut, wenn der Befehl nicht in 60s geschaft wird oder Abbrechen wenn Stop Taste gedrückt wird
+            while (digitalRead(button_stop_pin) == HIGH) {
+              delay(1);
+            }
+            strcpy(myMessageToBeSent.text, "stop");
+            espnow_send_data();
+            esp_now_msg_recived = false;
+            wert_aendern = false;
+            turntable_init = false;
+            turntable_running = false;
+            turntable_millis = 0;
+            prev_millis = 0;
+            esp_now_wait = "";
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              esp_now_wait_old = "...";
+            #endif
+            initRotaries(SW_MENU, 1, 0, 1, 1);
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              esp_now_change = true;
+            #endif
+          }
+          else if (millis() - prev_millis > 1000 and menuitem_3 == 0) {
+            prev_millis = millis();
+            if (esp_now_wait.length() < 3) {esp_now_wait = esp_now_wait + ".";}
+            else {esp_now_wait = "";}
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              esp_now_change = true;
+            #endif
+          }
+          if (esp_now_msg_recived == true) {
+            //Werte zurücksetzen
+            wert_aendern = false;
+            esp_now_msg_recived = false;
+            turntable_running = false;
+            turntable_millis = 0;
+            esp_now_wait = "";
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              esp_now_wait_old = "...";
+              change = true;
+            #endif
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          }
+        }
+        if (center_jar_running == true) {
+          initRotaries(SW_MENU, jar_center_pos, 0, 1500, move_steps); //zurücksetzen wenn zu schnell am rotary gedreht wurde
+          if (millis() - turntable_millis > 3000) {   //verlassen wenn der Befehl nicht in 3sek geschafft wurde
+            //muss noch gemacht werden :-)
+          }
+          if (esp_now_msg_recived == true) {
+            //Werte zurücksetzen
+            esp_now_msg_recived = false;
+            center_jar_running = false;
+            turntable_millis = 0;
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          }
+        }
+        if (wert_aendern == false) {
+          menuitem_3 = getRotariesValue(SW_MENU);
+          initRotaries(SW_MENU, menuitem_3, 0, MenuepunkteAnzahl_3 - 1, 1);
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            pos = menuitem_3;
+          #endif
+          if (menuitem_3 == MenuepunkteAnzahl_3 - 1) {
+            menuitem_3 = 7;
+          }
+        }
+        else {
+          switch (menuitem_3) {
+            case 1: jar_center_pos = getRotariesValue(SW_MENU);
+                    break;
+            case 2: speed_init = getRotariesValue(SW_MENU);
+                    break;
+            case 3: speed_run = getRotariesValue(SW_MENU);
+                    break;
+          }
+        }
+        #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+          u8g2.clearBuffer();
+          u8g2.setFont(u8g2_font_courB08_tf);
+          u8g2.setCursor(10, 1 * y_offset);
+          u8g2.print(menuepunkte_3[0]);
+          u8g2.setCursor(105, 1 * y_offset);
+          sprintf(ausgabe,"%4s", esp_now_wait);
+          u8g2.print(ausgabe);
+          u8g2.setCursor(10, 2 * y_offset);
+          u8g2.print(menuepunkte_3[1]);
+          u8g2.setCursor(105, 2 * y_offset);
+          sprintf(ausgabe,"%4i", jar_center_pos);
+          u8g2.print(ausgabe);
+          u8g2.setCursor(10, 3 * y_offset);
+          u8g2.print(menuepunkte_3[2]);
+          u8g2.setCursor(105, 3 * y_offset);
+          sprintf(ausgabe,"%4i", speed_init);
+          u8g2.print(ausgabe);
+          u8g2.setCursor(10, 4 * y_offset);
+          u8g2.print(menuepunkte_3[3]);
+          u8g2.setCursor(105, 4 * y_offset);
+          sprintf(ausgabe,"%4i", speed_run);
+          u8g2.print(ausgabe);
+          u8g2.setCursor(10, (7 * y_offset) + 5);
+          u8g2.print(menuepunkte_3[4]);
+          if (wert_aendern == false && menuitem_3 < MenuepunkteAnzahl_3 - 1) {
+            u8g2.setCursor(1, 10+((menuitem_3)*y_offset)); u8g2.print("*");
+          }
+          else if (wert_aendern == true && menuitem_3 < MenuepunkteAnzahl_3 - 1) {
+            u8g2.setCursor(1, 8+((menuitem_3)*y_offset)); u8g2.print("-");
+          }
+          else if (wert_aendern == false && menuitem_3 == 7) {
+            u8g2.setCursor(1, 10+((menuitem_3 - 1)*y_offset) + 5); u8g2.print("*");
+          }
+          u8g2.sendBuffer();
+        #endif
+        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+          int j = 0;
+          while(j < MenuepunkteAnzahl_3) {
+            gfx->setTextColor(TEXT);
+            if (j == pos and wert_aendern == false) {
+              gfx->setTextColor(MARKER);
+            }
+            if (j < MenuepunkteAnzahl_3 - 1) {
+              gfx->setCursor(5, 30+((j+1) * y_offset_tft));
+              gfx->print(menuepunkte_3[j]);
+              if (j == pos and wert_aendern == true) {
+                gfx->setTextColor(MARKER);
+              }
+              switch (j) {
+                case 0: sprintf(ausgabe,"");
+                        if (esp_now_wait_old != esp_now_wait and turntable_running == true) {
+                          sprintf(ausgabe,"%s", esp_now_wait);
+                          esp_now_wait_old = esp_now_wait;
+                          change = true;
+                        }
+                        else if (esp_now_wait != "" and turntable_running == false) {
+                          change = true;
+                          esp_now_wait = "";
+                          esp_now_wait_old = "...";
+                        }
+                        break;
+                case 1: sprintf(ausgabe,"%i", jar_center_pos);
+                        if (wert_old != jar_center_pos and wert_aendern == true and j == pos) {
+                          change = true;
+                          wert_old = jar_center_pos;
+                        }
+                        break;
+                case 2: sprintf(ausgabe,"%i", speed_init);
+                        if (wert_old != speed_init and wert_aendern == true and j == pos) {
+                          change = true;
+                          wert_old = speed_init;
+                        }
+                        break;
+                case 3: sprintf(ausgabe,"%i", speed_run);
+                        if (wert_old != speed_run and wert_aendern == true and j == pos) {
+                          change = true;
+                          wert_old = speed_run;
+                        }
+                        break;
+              }
+              if (change) {
+                gfx->fillRect(251, 27+((j+1) * y_offset_tft)-19, 64, 27, BACKGROUND);
+                if (use_turntable == false) {
+                  gfx->fillRect(0, 65, 320, 135, BACKGROUND);
+                }
+                change = false;
+              }
+              int y = get_length(ausgabe);
+              gfx->setCursor(320 - y * 14 - 5, 30+((j+1) * y_offset_tft));
+              gfx->print(ausgabe);
+            }
+            else {
+              gfx->setCursor(10, 30+(7 * y_offset_tft));
+              gfx->print(menuepunkte_3[j]);
+            }
+            j++;
+          }
+        #endif
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_3 < MenuepunkteAnzahl_3 - 1  && wert_aendern == false) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          last_menu_pos_3 = menuitem_3;
+          switch (menuitem_3) {
+            case 0: turntable_running = true;
+                    turntable_millis = millis();
+                    esp_now_msg_recived = false;
+                    strcpy(myMessageToBeSent.text, "move_jar");
+                    espnow_send_data();
+                    break;
+            case 1: rotary_select = SW_MENU;
+                    initRotaries(SW_MENU, jar_center_pos, 0, 1500, move_steps);
+                    break;
+            case 2: rotary_select = SW_MENU;
+                    initRotaries(SW_MENU, speed_init, 100, 600, 50);
+                    break;
+            case 3: rotary_select = SW_MENU;
+                    initRotaries(SW_MENU, speed_run, 100, 600, 50);
+                    break;
+          }
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            wert_old = -1;
+          #endif
+          wert_aendern = true;
+        }
+        if (menuitem_3 == 1 and wert_aendern == true) {
+          if (jar_center_pos != jar_center_pos_old) {
+            move_vale = 0;
+            if (jar_center_pos > jar_center_pos_old) {move_vale = 2 * move_steps;}
+            else if (jar_center_pos < jar_center_pos_old) {move_vale = (2 * move_steps) * -1;}
+            jar_center_pos_old = jar_center_pos;
+            if (move_vale != 0) {
+              center_jar_running = true;
+              esp_now_msg_recived = false;
+              turntable_millis = millis();
+              strcpy(myMessageToBeSent.text, "move_pos");
+              myMessageToBeSent.value = move_vale;
+              espnow_send_data();
+            }
+          }
+        }
+        // Änderung im Menupunkt übernehmen
+        if ((digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_3 < MenuepunkteAnzahl_3 - 1  && wert_aendern == true)) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          rotary_select = SW_MENU;
+          initRotaries(SW_MENU, menuitem_3, 0, MenuepunkteAnzahl_3 - 1, 1);
+          wert_aendern = false;
+        }
+        // Menu verlassen
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_3 == 7) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          if (speed_init != speed_init_old) {
+            strcpy(myMessageToBeSent.text, "speed_init_save");
+            myMessageToBeSent.value = speed_init;
+            espnow_send_data();
+            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
+            turntable_millis = millis();
+            esp_now_msg_recived = false;
+            while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+              delay(10);
+            }
+          }
+          if (speed_run != speed_run_old) {
+            strcpy(myMessageToBeSent.text, "speed_run_save");
+            myMessageToBeSent.value = speed_run;
+            espnow_send_data();
+            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
+            turntable_millis = millis();
+            esp_now_msg_recived = false;
+            while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+              delay(10);
+            }
+          }
+          if (jar_center_pos != 0) {
+            turntable_init = false;
+            strcpy(myMessageToBeSent.text, "pos_jar_steps_save");
+            myMessageToBeSent.value = 2 * jar_center_pos;
+            espnow_send_data();
+            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
+            turntable_millis = millis();
+            esp_now_msg_recived = false;
+            while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+              delay(10);
+            }
+          }
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.setCursor(111, (menuitem_3 * y_offset) + 5);
+            u8g2.print("OK");
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->setCursor(283, 30+(7 * y_offset_tft));
+            gfx->print("OK");
+          #endif
+          esp_now_msg_recived = false;
+          jar_center_pos = 0;
+          jar_center_pos_old = 0;
+          delay(1000);
+          initRotaries(SW_MENU, 1, 0, MenuepunkteAnzahl_2 -1, 1);
+          i = 2;
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->fillRect(0, 32, 320, 208, BACKGROUND);
+          #endif
+        }
+      }
+      if (i == 4) {
+        setRotariesValue(SW_MENU, 0);       //Workaround --> noch suchen warum der Rotary Wert auf 2 ist
+        ts_open_running = false;
+        ts_close_running = false;
+        ts_angle_running = false;
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "ts_angle_min");
+        espnow_send_data();
+        turntable_millis = millis();
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+          delay(10);
+        }
+        ts_angle_min = ts_angle_min_old = ts_angle_min_start = myReceivedMessage.value;
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "ts_angle_max");
+        espnow_send_data();
+        turntable_millis = millis();
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+          delay(10);
+        }
+        ts_angle_max = ts_angle_max_old = ts_angle_max_start = myReceivedMessage.value;
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "ts_waittime");
+        espnow_send_data();
+        turntable_millis = millis();
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+          delay(10);
+        }
+        ts_waittime = ts_waittime_old = myReceivedMessage.value;
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "ts_speed");
+        espnow_send_data();
+        turntable_millis = millis();
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+          delay(10);
+        }
+        ts_speed = ts_speed_old = myReceivedMessage.value;
+        //initRotaries(SW_MENU, menuitem_4, 0, MenuepunkteAnzahl_4 - 1, 1);
+      }
+      while (i == 4) {
+        if (digitalRead(button_stop_pin)) {
+          while (digitalRead(button_stop_pin) == HIGH) {
+            delay(1);
+          }
+          wert_aendern = false;
+          rotary_select = SW_MENU;
+          initRotaries(SW_MENU, menuitem_2, 0, MenuepunkteAnzahl_2 - 1, 1);
+          esp_now_msg_recived = false;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+          i = 2;
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            wert_old = -1;
+            gfx->fillRect(0, 32, 320, 208, BACKGROUND);
+          #endif
+          break;
+        }
+        if (digitalRead(switch_setup_pin) == LOW) {
+          esp_now_msg_recived = false;
+          rotary_select = SW_MENU;
+          modus = -1;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+          return;
+        }
+        if (ts_open_running == true or ts_close_running == true or ts_angle_running == true) { //zurücksetzen wenn zu schnell am rotary gedreht wurde
+          if (ts_open_running == true or ts_close_running) {initRotaries(SW_MENU, menuitem_4, 0, MenuepunkteAnzahl_4 - 1, 1);}
+          else if (ts_angle_running == true and menuitem_4 == 4) {initRotaries(SW_MENU, ts_angle_min, 0, ts_angle_max, 5);}
+          else if (ts_angle_running == true and menuitem_4 == 5) {initRotaries(SW_MENU, ts_angle_max, ts_angle_min, 180, 5);}
+          if (millis() - turntable_millis > 3000) {   //verlassen wenn der Befehl nicht in 3sek geschafft wurde
+            //muss noch gemacht werden :-)
+          }
+          if (esp_now_msg_recived == true) {
+            //Werte zurücksetzen
+            if (ts_open_running == true or ts_close_running) {wert_aendern = false;}
+            esp_now_msg_recived = false;
+            ts_open_running = false;
+            ts_close_running = false;
+            ts_angle_running = false;
+            turntable_millis = 0;
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          }
+        }
+        if (wert_aendern == false) {
+          menuitem_4 = getRotariesValue(SW_MENU);
+          initRotaries(SW_MENU, menuitem_4, 0, MenuepunkteAnzahl_4 - 1, 1);
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            pos = menuitem_4;
+          #endif
+          if (menuitem_4 == MenuepunkteAnzahl_4 - 1) {
+            menuitem_4 = 7;
+          }
+        }
+        else {
+          switch (menuitem_4) {
+            case 2:ts_speed = getRotariesValue(SW_MENU);
+                    break;
+            case 3: ts_waittime = getRotariesValue(SW_MENU);
+                    break;
+            case 4: ts_angle_min = getRotariesValue(SW_MENU);
+                    break;
+            case 5: ts_angle_max = getRotariesValue(SW_MENU);
+                    break;
+          }
+        }
+        #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+          u8g2.clearBuffer();
+          u8g2.setFont(u8g2_font_courB08_tf);
+          u8g2.setCursor(10, 1 * y_offset);
+          u8g2.print(menuepunkte_4[0]);
+          u8g2.setCursor(10, 2 * y_offset);
+          u8g2.print(menuepunkte_4[1]);
+          u8g2.setCursor(10, 3 * y_offset);
+          u8g2.print(menuepunkte_4[2]);
+          u8g2.setCursor(105, 3 * y_offset);
+          sprintf(ausgabe,"%4i", ts_speed);
+          u8g2.print(ausgabe);
+          u8g2.setCursor(10, 4 * y_offset);
+          u8g2.print(menuepunkte_4[3]);
+          u8g2.setCursor(105, 4 * y_offset);
+          sprintf(ausgabe,"%4i", ts_waittime);
+          u8g2.print(ausgabe);
+          u8g2.setCursor(10, 5 * y_offset);
+          u8g2.print(menuepunkte_4[4]);
+          u8g2.setCursor(105, 5 * y_offset);
+          sprintf(ausgabe,"%4i", ts_angle_min);
+          u8g2.print(ausgabe);
+          u8g2.setCursor(10, 6 * y_offset);
+          u8g2.print(menuepunkte_4[5]);
+          u8g2.setCursor(105, 6 * y_offset);
+          sprintf(ausgabe,"%4i", ts_angle_max);
+          u8g2.print(ausgabe);
+          u8g2.setCursor(10, (7 * y_offset) + 5);
+          u8g2.print(menuepunkte_4[6]);
+          if (wert_aendern == false && menuitem_4 < MenuepunkteAnzahl_4 - 1) {
+            u8g2.setCursor(1, 10+((menuitem_4)*y_offset)); u8g2.print("*");
+          }
+          else if (wert_aendern == true && menuitem_4 < MenuepunkteAnzahl_4 - 1) {
+            u8g2.setCursor(1, 8+((menuitem_4)*y_offset)); u8g2.print("-");
+          }
+          else if (wert_aendern == false && menuitem_4 == 7) {
+            u8g2.setCursor(1, 10+((menuitem_4 - 1)*y_offset) + 5); u8g2.print("*");
+          }
+          u8g2.sendBuffer();
+        #endif
+        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+          int j = 0;
+          while(j < MenuepunkteAnzahl_4) {
+            gfx->setTextColor(TEXT);
+            if (j == pos and wert_aendern == false) {
+              gfx->setTextColor(MARKER);
+            }
+            if (j < MenuepunkteAnzahl_4 - 1) {
+              gfx->setCursor(5, 30+((j+1) * y_offset_tft));
+              gfx->print(menuepunkte_4[j]);
+              if (j == pos and wert_aendern == true) {
+                gfx->setTextColor(MARKER);
+              }
+              switch (j) {
+                case 0: sprintf(ausgabe,"");
+                        break;
+                case 1: sprintf(ausgabe,"");
+                        break;
+                case 2: sprintf(ausgabe,"%i", ts_speed);
+                        if (wert_old != ts_speed and wert_aendern == true and j == pos) {
+                          change = true;
+                          wert_old = ts_speed;
+                        }
+                        break;
+                case 3: sprintf(ausgabe,"%i", ts_waittime);
+                        if (wert_old != ts_waittime and wert_aendern == true and j == pos) {
+                          change = true;
+                          wert_old = ts_waittime;
+                        }
+                        break;
+                case 4: sprintf(ausgabe,"%i", ts_angle_min);
+                        if (wert_old != ts_angle_min and wert_aendern == true and j == pos) {
+                          change = true;
+                          wert_old = ts_angle_min;
+                        }
+                        break;
+                case 5: sprintf(ausgabe,"%i", ts_angle_max);
+                        if (wert_old != ts_angle_max and wert_aendern == true and j == pos) {
+                          change = true;
+                          wert_old = ts_angle_max;
+                        }
+                        break;
+              }
+              if (change) {
+                gfx->fillRect(251, 27+((j+1) * y_offset_tft)-19, 64, 27, BACKGROUND);
+                change = false;
+              }
+              int y = get_length(ausgabe);
+              gfx->setCursor(320 - y * 14 - 5, 30+((j+1) * y_offset_tft));
+              gfx->print(ausgabe);
+            }
+            else {
+              gfx->setCursor(10, 30+(7 * y_offset_tft));
+              gfx->print(menuepunkte_4[j]);
+            }
+            j++;
+          }
+        #endif
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_4 < MenuepunkteAnzahl_4 - 1  && wert_aendern == false) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          last_menu_pos_4 = menuitem_4;
+          switch (menuitem_4) {
+            case 0: ts_open_running = true;
+                    turntable_millis = millis();
+                    esp_now_msg_recived = false;
+                    strcpy(myMessageToBeSent.text, "open_drop_prodection");
+                    espnow_send_data();
+                    break;
+            case 1: ts_close_running = true;
+                    turntable_millis = millis();
+                    esp_now_msg_recived = false;
+                    strcpy(myMessageToBeSent.text, "close_drop_prodection");
+                    espnow_send_data();
+                    break;
+            case 2: rotary_select = SW_MENU;
+                    initRotaries(SW_MENU, ts_speed, 0, 500, 10);
+                    break;
+            case 3: rotary_select = SW_MENU;
+                    initRotaries(SW_MENU, ts_waittime, 0, 120, 1);
+                    break;
+            case 4: rotary_select = SW_MENU;
+                    initRotaries(SW_MENU, ts_angle_min, 0, ts_angle_max, 5);
+                    break;
+            case 5: rotary_select = SW_MENU;
+                    initRotaries(SW_MENU, ts_angle_max, ts_angle_min, 180, 5);
+                    break;
+          }
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            wert_old = -1;
+          #endif
+          wert_aendern = true;
+        }
+        if ((menuitem_4 == 4 or menuitem_4 == 5) and wert_aendern == true) {
+          move_vale = -1;
+          if (menuitem_4 == 4 and ts_angle_min != ts_angle_min_old) {move_vale = ts_angle_min; ts_angle_min_old = ts_angle_min;}
+          if (menuitem_4 == 5 and ts_angle_max != ts_angle_max_old) {move_vale = ts_angle_max; ts_angle_max_old = ts_angle_max;}
+          if (move_vale >= 0) {
+            ts_angle_running = true;
+            esp_now_msg_recived = false;
+            turntable_millis = millis();
+            strcpy(myMessageToBeSent.text, "move_dp");
+            myMessageToBeSent.value = move_vale;
+            espnow_send_data();
+          }
+        }
+        // Änderung im Menupunkt übernehmen
+        if ((digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_4 < MenuepunkteAnzahl_4 - 1  && wert_aendern == true)) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          rotary_select = SW_MENU;
+          initRotaries(SW_MENU, menuitem_4, 0, MenuepunkteAnzahl_4 - 1, 1);
+          wert_aendern = false;
+        }
+        // Menu verlassen
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_4 == 7) {
+          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+            delay(1);
+          }
+          if (ts_angle_min != ts_angle_min_start) {
+            strcpy(myMessageToBeSent.text, "ts_angle_min_save");
+            myMessageToBeSent.value = ts_angle_min;
+            espnow_send_data();
+            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
+            turntable_millis = millis();
+            esp_now_msg_recived = false;
+            while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+              delay(10);
+            }
+          }
+          if (ts_angle_max != ts_angle_max_start) {
+            strcpy(myMessageToBeSent.text, "ts_angle_max_save");
+            myMessageToBeSent.value = ts_angle_max;
+            espnow_send_data();
+            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
+            turntable_millis = millis();
+            esp_now_msg_recived = false;
+            while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+              delay(10);
+            }
+          }
+          if (ts_speed != ts_speed_old) {
+            strcpy(myMessageToBeSent.text, "ts_speed_save");
+            myMessageToBeSent.value = ts_speed;
+            espnow_send_data();
+            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
+            turntable_millis = millis();
+            esp_now_msg_recived = false;
+            while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+              delay(10);
+            }
+          }
+          if (ts_waittime != ts_waittime_old) {
+            strcpy(myMessageToBeSent.text, "ts_waittime_save");
+            myMessageToBeSent.value = ts_waittime;
+            espnow_send_data();
+            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
+            turntable_millis = millis();
+            esp_now_msg_recived = false;
+            while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+              delay(10);
+            }
+          }
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.setCursor(111, (menuitem_4 * y_offset) + 5);
+            u8g2.print("OK");
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->setCursor(283, 30+(7 * y_offset_tft));
+            gfx->print("OK");
+          #endif
+          esp_now_msg_recived = false;
+          ts_angle_running = false;
+          ts_close_running = false;
+          ts_open_running = false;
+          delay(1000);
+          initRotaries(SW_MENU, 2, 0, MenuepunkteAnzahl_2 -1, 1);
+          i = 2;
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->fillRect(0, 32, 320, 208, BACKGROUND);
+          #endif
         }
       }
     }
@@ -4070,7 +4690,7 @@ void processSetup(void) {
       if (menuepunkte[menuitem] == COUNTER[lingo])           setupCounter();           // Zählwerk
       if (menuepunkte[menuitem] == COUNTER_TRIP[lingo])      setupTripCounter();       // Zählwerk Trip
       if (menuepunkte[menuitem] == INA219_SETUP[lingo])      setupINA219();            // INA219 Setup
-      if (menuepunkte[menuitem] == TURNTABLE[lingo])         setupDrehteller();        // INA219 Setup
+      if (menuepunkte[menuitem] == TURNTABLE[lingo])         setupDrehteller();        // Turntable Setup
       if (menuepunkte[menuitem] == LANGUAGE1[lingo])         setupLanguage();          // Language setup
       setPreferences();
       if (menuepunkte[menuitem] == CLEAR_PREFS[lingo])       setupClearPrefs();        // EEPROM löschen
@@ -4090,26 +4710,128 @@ void processAutomatik(void) {
   static int autokorrektur_gr = 0; 
   int erzwinge_servo_aktiv = 0;
   boolean voll = false;
-  static float gewicht_alt2;       //Gewicht des vorhergehenden Durchlaufs A.P.
+  static float gewicht_alt2;       // Gewicht des vorhergehenden Durchlaufs A.P.
   static int gewicht_vorher;       // Gewicht des vorher gefüllten Glases
   static int sammler_num = 5;      // Anzahl identischer Messungen für Nachtropfen
   int loop1 = 3;                   // anzahl alle wieviel Durchgänge die auto Servo einstellung gemacht werden soll A.P.
   int n;
   int y_offset = 0;
-  if (modus != MODE_AUTOMATIK) {
-     modus = MODE_AUTOMATIK;
-     winkel = winkel_min;          // Hahn schliessen
-     servo_aktiv = 0;              // Servo-Betrieb aus
-     SERVO_WRITE(winkel);
-     auto_aktiv = 0;               // automatische Füllung starten
-     tare_glas = 0;
-     rotary_select = SW_WINKEL;    // Einstellung für Winkel über Rotary
-     offset_winkel = 0;            // Offset vom Winkel wird auf 0 gestellt
-     initRotaries(SW_MENU, fmenge_index, 0, 4, 1);
-     setRotariesValue(SW_FLUSS, intGewicht);  //warum auch immer :-)
-     gewicht_vorher = glaeser[fmenge_index].Gewicht + korrektur;
-     #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+  #if DREHTELLER == 1
+    unsigned long time;
+  #endif
+  #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
       int x_pos;
+  #endif
+  if (modus != MODE_AUTOMATIK) {
+    winkel = winkel_min;          // Hahn schliessen
+    servo_aktiv = 0;              // Servo-Betrieb aus
+    SERVO_WRITE(winkel);
+    auto_aktiv = 0;               // automatische Füllung starten
+    tare_glas = 0;
+    rotary_select = SW_WINKEL;    // Einstellung für Winkel über Rotary
+    offset_winkel = 0;            // Offset vom Winkel wird auf 0 gestellt
+    initRotaries(SW_MENU, fmenge_index, 0, 4, 1);
+    setRotariesValue(SW_FLUSS, intGewicht);  //warum auch immer :-)
+    gewicht_vorher = glaeser[fmenge_index].Gewicht + korrektur;
+    #if DREHTELLER == 1
+      turntable_moving = false;
+      if (use_turntable == 1) {
+        turntable_ok = false;
+        strcpy(myMessageToBeSent.text, "close_drop_prodection");
+        espnow_send_data();
+      }
+      else {
+        strcpy(myMessageToBeSent.text, "open_drop_prodection");
+        espnow_send_data();
+      }
+      if (use_turntable == 1) {
+        #ifdef ESP_NOW_DEBUG
+          Serial.println("Use turntable");
+        #endif
+        //Clear Display
+        #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+          u8g2.clearBuffer();
+          u8g2.sendBuffer();
+        #endif
+        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+          gfx->fillScreen(BACKGROUND);
+        #endif
+        turntable_init = false;
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+        strcpy(myMessageToBeSent.text, "check");
+        espnow_send_data();
+        time = millis();
+        while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+          delay(10);
+        }
+        if(strcmp(myReceivedMessage.text, "ok_init") == 0 or strcmp(myReceivedMessage.text, "nok_init") == 0 or strcmp(myReceivedMessage.text, "init_error") == 0) {
+          if(strcmp(myReceivedMessage.text, "ok_init") == 0) {
+            turntable_init = true;
+          }
+        }
+        else {
+          esp_now_msg_recived = false;
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.setFont(u8g2_font_courB08_tf);
+            x_pos = CenterPosX(CONNECTION[lingo], 6, 128);                 //ein Zeichen ist etwa 6 Pixel breit
+            u8g2.setCursor(x_pos,22);  
+            u8g2.print(CONNECTION[lingo]);
+            x_pos = CenterPosX(FAILED[lingo], 6, 128);                     //ein Zeichen ist etwa 6 Pixel breit
+            u8g2.setCursor(x_pos,42);  
+            u8g2.print(FAILED[lingo]);
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->setTextColor(RED);
+            gfx->setFont(Punk_Mono_Bold_320_200);
+            x_pos = CenterPosX(CONNECTION[lingo], 18, 320);
+            gfx->setCursor(x_pos, 120);
+            gfx->println(CONNECTION[lingo]);
+            x_pos = CenterPosX(FAILED[lingo], 18, 320);
+            gfx->setCursor(x_pos, 150);
+            gfx->println(FAILED[lingo]);
+            gfx->setTextColor(TEXT);
+          #endif
+          while (digitalRead(switch_betrieb_pin) == HIGH) {
+            if (digitalRead(switch_betrieb_pin) == HIGH) {delay(10);}
+          }
+        }
+        if (turntable_init == false) {
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.setFont(u8g2_font_courB08_tf);
+            x_pos = CenterPosX(INIT_TURNTABLE[lingo], 6, 128);
+            u8g2.setCursor(x_pos,22);  
+            u8g2.print(INIT_TURNTABLE[lingo]);
+            x_pos = CenterPosX(NOKAY[lingo], 6, 128);
+            u8g2.setCursor(x_pos,42);  
+            u8g2.print(NOKAY[lingo]);
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->setTextColor(RED);
+            gfx->setFont(Punk_Mono_Bold_320_200);
+            x_pos = CenterPosX(INIT_TURNTABLE[lingo], 18, 320);
+            gfx->setCursor(x_pos, 120);
+            gfx->println(INIT_TURNTABLE[lingo]);
+            x_pos = CenterPosX(NOKAY[lingo], 18, 320);
+            gfx->setCursor(x_pos, 150);
+            gfx->println(NOKAY[lingo]);
+            gfx->setTextColor(TEXT);
+          #endif
+          while (digitalRead(switch_betrieb_pin) == HIGH) {
+            if (digitalRead(switch_betrieb_pin) == HIGH) {delay(10);}
+          }
+        }
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+      }
+    #endif
+    #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
       if (current_servo > 0) {
         no_ina = true;
       }
@@ -4205,6 +4927,7 @@ void processAutomatik(void) {
       gfx->printf("%s:", ACT);
       gfx->drawLine(0, 20, 320, 20, TEXT);
     #endif
+    modus = MODE_AUTOMATIK;
   }
   pos = getRotariesValue(SW_WINKEL);
   // nur bis winkel_fein regeln, oder über initRotaries lösen?
@@ -4245,6 +4968,19 @@ void processAutomatik(void) {
     servo_aktiv = 0;
     auto_aktiv  = 0;
     tare_glas   = 0;
+    #if DREHTELLER == 1
+      turntable_moving = false;
+      if (use_turntable == 1) {
+        esp_now_msg_recived = false;
+        strcpy(myMessageToBeSent.text, "stop");
+        espnow_send_data();
+        time = millis();
+        while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+          delay(10);
+        }
+        modus = -1;
+      }
+    #endif
   }
   // Fehlerkorrektur der Waage, falls Gewicht zu sehr schwankt 
   #ifdef FEHLERKORREKTUR_WAAGE
@@ -4268,7 +5004,7 @@ void processAutomatik(void) {
     }
   }
   // Automatik ein, leeres Glas aufgesetzt, Servo aus -> Glas füllen
-  if (auto_aktiv == 1 && abs(gewicht) <= glastoleranz && servo_aktiv == 0) {
+  if (auto_aktiv == 1 && abs(gewicht) <= glastoleranz && servo_aktiv == 0 and turntable_ok == true) {
     rotary_select = SW_WINKEL;     // falls während der Parameter-Änderung ein Glas aufgesetzt wird
     #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99 
       u8g2.clearBuffer();
@@ -4396,7 +5132,7 @@ void processAutomatik(void) {
     }
   }
   // Glas ist teilweise gefüllt. Start wird über Start-Taster erzwungen
-  if (auto_aktiv == 1 && gewicht > 5 && erzwinge_servo_aktiv == 1) {
+  if (auto_aktiv == 1 && gewicht > 5 && erzwinge_servo_aktiv == 1 and turntable_ok == true) {
     servo_aktiv = 1;
     voll = false;
     gezaehlt = false;
@@ -4826,6 +5562,90 @@ void processAutomatik(void) {
       gewicht_alt = gewicht;
     }
   #endif
+  //Turntable
+  #if DREHTELLER == 1
+    if (use_turntable == 1 and turntable_init_check == true) {
+      esp_now_msg_recived = false;
+      memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+      strcpy(myMessageToBeSent.text, "turn_off_stepper_init_check");
+      espnow_send_data();
+      time = millis();
+      while (!esp_now_msg_recived and millis() - time <= 10000 and strcmp(myReceivedMessage.text, "") == 0) {
+        delay(10);
+      }
+      if (strcmp(myReceivedMessage.text, "ok_off_init_check") == 0) {
+        turntable_init_check = false;
+      }
+    }
+    if (use_turntable == 1 and auto_aktiv == 1 and tare > 0) {
+      if (gewicht >= -20 and drop_prodection == 0 and turntable_moving == 0) {
+        turntable_ok = true;
+      } 
+      else {
+        turntable_ok = false;
+      }
+      //Glass ist auf der Waage
+      if (gewicht >= -20 and drop_prodection == 1 and turntable_moving == 0 and gewicht <= zielgewicht) {
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "open_drop_prodection");
+        espnow_send_data();
+        time = millis();
+        while (!esp_now_msg_recived and millis() - time <= 10000 and strcmp(myReceivedMessage.text, "") == 0) {
+          delay(10);
+        }
+        if (strcmp(myReceivedMessage.text, "ok_open_dp") == 0) {
+          drop_prodection = false;
+        }
+      }
+      //Glass wurde von der Waage entfernt
+      else if (gewicht < -20 and drop_prodection == 0 and turntable_moving == 0) {
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "close_drop_prodection");
+        espnow_send_data();
+        time = millis();
+        while (!esp_now_msg_recived and millis() - time <= 60000 and strcmp(myReceivedMessage.text, "") == 0) {
+          delay(10);
+        }
+        if (strcmp(myReceivedMessage.text, "ok_close_dp") == 0) {
+          drop_prodection = true;
+        }
+      }
+      //Glass ist voll
+      else if (gewicht >= zielgewicht and drop_prodection == 0 and turntable_moving == 0) {
+        SERVO_WRITE(winkel_min + offset_winkel);
+        delay(2000);      //lassen wir mal dem Servo Zeit um zu schliessen. haben es ja nicht eilig
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "close_drop_prodection");
+        espnow_send_data();
+        time = millis();
+        while (!esp_now_msg_recived and millis() - time <= 60000 and strcmp(myReceivedMessage.text, "") == 0) {
+          delay(10);
+        }
+        if (strcmp(myReceivedMessage.text, "ok_close_dp") == 0) {
+          drop_prodection = true;
+        }
+      }
+      //Move Turntable
+      if ((gewicht < -20 and drop_prodection == 1 and turntable_moving == 0) or (gewicht >= zielgewicht and drop_prodection == 1 and turntable_moving == 0)) {
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        esp_now_msg_recived = false;
+        turntable_moving = true;
+        strcpy(myMessageToBeSent.text, "move_jar");
+        espnow_send_data();
+      }
+      else if (drop_prodection == 1 and turntable_moving == 1 and esp_now_msg_recived == true) {
+        esp_now_msg_recived = false;
+        if (strcmp(myReceivedMessage.text, "ok_move_jar") == 0) {
+          turntable_moving = false;
+        }
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+      }
+    }
+  #endif
+  //end Turntable
   if (alarm_overcurrent) {i = 1;}
   while (i > 0) {
     inawatchdog = 0;                    //schalte die kontiunirliche INA Messung aus
@@ -4912,8 +5732,6 @@ void processHandbetrieb(void) {
     winkel = winkel_min + offset_winkel;
   }
   winkel = constrain(winkel, winkel_min + offset_winkel, winkel_max);
-
-  
   SERVO_WRITE(winkel);
   if (ina219_installed and (current_servo > 0 or show_current == 1)) {
     y_offset = 4;
@@ -5301,10 +6119,32 @@ void setup() {
         Serial.println("Failed to add peer");
       #endif
     }
+    unsigned long turntable_millis = millis();
+    esp_now_msg_recived = false;
+    strcpy(myMessageToBeSent.text, "close_drop_prodection");
+    espnow_send_data();
+    while (millis() - turntable_millis < 10000 and esp_now_msg_recived == false) {  //brechce ab wenn in 10 sek keine Rückmeldung kommt
+      delay(10);
+    }
   #endif
 }
 
 void loop() {
+  #if DREHTELLER == 1
+    if (use_turntable == 1 and turntable_init_check == false and ((digitalRead(switch_setup_pin) == HIGH) or (digitalRead(switch_betrieb_pin) == LOW and digitalRead(switch_setup_pin) == LOW))) {
+      esp_now_msg_recived = false;
+      memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+      strcpy(myMessageToBeSent.text, "turn_on_stepper_init_check");
+      espnow_send_data();
+      unsigned long time = millis();
+      while (!esp_now_msg_recived and millis() - time <= 10000 and strcmp(myReceivedMessage.text, "") == 0) {
+        delay(10);
+      }
+      if (strcmp(myReceivedMessage.text, "ok_on_init_check") == 0) {
+        turntable_init_check = true;
+      }
+    }
+  #endif
   rotating = true;     // debounce Management
   //INA219 Messung
   if (ina219_installed and inawatchdog == 1 and (current_servo > 0 or show_current == 1) and (modus == MODE_HANDBETRIEB or modus == MODE_AUTOMATIK)) {
