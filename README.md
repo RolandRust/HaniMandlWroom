@@ -23,7 +23,7 @@ Diese könnt Ihr nun an eurem Computer eingeben (z.B. http://192.168.76.232/upda
 Unter Setup - Automatik kann neu ein Automatisch geregelter Volumenstrom eingestellt werden. Dies kann Hilfreich sein, wenn sehr flüssiger Honig abgefüllt wird.
 
 ## Drehteller (Honig schlepp Esel)
-Integation von dem Honig schlepp Esel. Dieser kann aktiviert werden in den Usereinstellungen unter #define DREHTELLER. Ist dieser wert auf 1, wird im Setup ein neues Menü Drehteller aufgeführt. Ist der Wert 0, so sollte sich der HaniMandel gleich verhalten wie wir den kennen.
+Integation von dem Honig schlepp Esel. Dieser kann aktiviert werden in den Usereinstellungen unter #define DREHTELLER. Ist dieser Wert auf 1, wird im Setup ein neues Menü Drehteller aufgeführt. Ist der Wert 0, so sollte sich der HaniMandel gleich verhalten wie wir den kennen.
 
 ## Bekannte Käferlein
 Beim ersten Start ist der maximale Öffnungswinkel im Manuel und Automatik Betrieb auf 0. Dieser muss dann mit der Rotary eingestellt werden. Danach wird der Wert gespeichert. Ob das in der Alten Version auch schon so war, kann ich aus dem Kopf nicht sagen :-)
@@ -53,5 +53,4 @@ zu finden unter: https://github.com/RolandRust/HonigSchleppElesl/
 
 ## Appell an dich
 
-Bitte respektiert unsere Arbeit als Maker. Wir investieren etliche Wochen und Monate in ein Projekt und geben dies dann Gratis euch zur Verfügung. Wir schlagen keinen Profit daraus und machen dies nur zum Spass und hoffen das es euch auch Spass macht. Ich habe kein Problem damit, wenn jemand 10 Stück baut und diese zum Selbstkostenpreis (ein Bier obendrauf liegt auch noch drin) den Imkerfreunden weitergibt. Aber schlägt kein Gewinn daraus.
-Und denkt dran: Ja es macht mir Spass ein Projekt wie dieses weiterzuentwickeln. Ich habe aber auch den gleichen Spass wenn ich es danach nicht veröffentliche.
+Bringt nix :-)
