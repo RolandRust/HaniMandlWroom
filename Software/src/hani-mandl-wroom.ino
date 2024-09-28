@@ -107,10 +107,7 @@
   2024-01 Achim Pfaff          - Verbesserte leere Glas Erkennung, da durch leichtes aufstellen von vollen Gläsern die Abfüllung gestartet wird.
                                - Automatischer Volumenstrom alle 3 Durchgänge
   2024-04 Roland Rust        | W.0.3      
-                               - Drehteller
-                             
-  
-                               
+                               - Drehteller integration             
 
   This code is in the public domain.
   
@@ -159,6 +156,10 @@ String version = "W.0.3";
                                   // 1 = OTA Update eingeschalten
 #define DREHTELLER 1              // 0 = kein Drehteller
                                   // 1 = Drehteller vorhanden
+#define CHANGE_MAC_ADDRESS_HM 1   // 0 = behalte die Orginale Mac Adresse
+                                  // 1 = Wechsle die Mac Adresse auf {0x74, 0x00, 0x00, 0x00, 0x00, 0x01}
+#define CHANGE_MAC_ADDRESS_TT 1   // 0 = Mac Adresse vom Drehteller ist die orginale
+                                  // 1 = Mac Adresse vom Drehteller wurde gewechselt auf {0x74, 0x00, 0x00, 0x00, 0x00, 0x02}
 //#define FEHLERKORREKTUR_WAAGE   // falls Gewichtssprünge auftreten, können diese hier abgefangen werden
                                   // Achtung, kann den Wägeprozess verlangsamen. Vorher Hardware prüfen.
 //#define QUETSCHHAHN_LINKS       // Servo invertieren, falls der Quetschhahn von links geöffnet wird. Mindestens ein Exemplar bekannt
@@ -174,6 +175,7 @@ String version = "W.0.3";
                                 // mit 5 zusätzlich rotary debug-Infos
                                 // ACHTUNG: zu viel Serieller Output kann einen ISR-Watchdog Reset auslösen!
 #define ESP_NOW_DEBUG
+//#define TURNTABLE_DEBUG
 
 #if SCALE_TYP == 1
   #define MAXIMALGEWICHT 1500     // Maximales Gewicht für 2kg Wägezelle
@@ -366,77 +368,80 @@ struct glas glaeser[5] = {
 #endif
 
 // Allgemeine Variablen
-int i;                              // allgemeine Zählvariable
-int pos;                            // aktuelle Position des Poti bzw. Rotary 
-int gewicht;                        // aktuelles Gewicht
-int tare;                           // Tara für das ausgewählte Glas, für Automatikmodus
-int tare_glas;                      // Tara für das aktuelle Glas, falls Glasgewicht abweicht
-long gewicht_leer;                  // Gewicht der leeren Waage
-float faktor;                       // Skalierungsfaktor für Werte der Waage
-int fmenge;                         // ausgewählte Füllmenge
-int fmenge_index;                   // Index in gläser[]
-int korrektur;                      // Korrekturwert für Abfüllmenge
-int autostart;                      // Vollautomatik ein/aus
-int autokorrektur;                  // Autokorrektur ein/aus
-int intGewicht;                     // A.P. Durchfluss pro Durchlauf welches fließen soll (g / Zeiteinheit) Abfüllgeschwindigkeit, dies soll eine konstante Geschwindigkeit beim abfüllen geben egal bei welchem Füllstand.
-int intGewichtD = 1;                // A.P. erlaubte Abweichung zu intGewicht  
-int Winkelmerker;                   // A.P. Merker für optimalen Winkel für nächste Befüllung
-int loop1_c;                        // A.P. Zähler für die Durchgänge  
-int kulanz_gr;                      // gewollte Überfüllung im Autokorrekturmodus in Gramm
-int winkel;                         // aktueller Servo-Winkel
-int winkel_hard_min = 0;            // Hard-Limit für Servo
-int winkel_hard_max = 180;          // Hard-Limit für Servo
-int winkel_min = 0;                 // konfigurierbar im Setup
-int winkel_max = 85;                // konfigurierbar im Setup
-int winkel_fein = 35;               // konfigurierbar im Setup
-float fein_dosier_gewicht = 60;     // float wegen Berechnung des Schliesswinkels
-int servo_aktiv = 0;                // Servo aktivieren ja/nein
+int i;                                // allgemeine Zählvariable
+int pos;                              // aktuelle Position des Poti bzw. Rotary 
+int gewicht;                          // aktuelles Gewicht
+int tare;                             // Tara für das ausgewählte Glas, für Automatikmodus
+int tare_glas;                        // Tara für das aktuelle Glas, falls Glasgewicht abweicht
+long gewicht_leer;                    // Gewicht der leeren Waage
+float faktor;                         // Skalierungsfaktor für Werte der Waage
+int fmenge;                           // ausgewählte Füllmenge
+int fmenge_index;                     // Index in gläser[]
+int korrektur;                        // Korrekturwert für Abfüllmenge
+int autostart;                        // Vollautomatik ein/aus
+int autokorrektur;                    // Autokorrektur ein/aus
+int intGewicht;                       // A.P. Durchfluss pro Durchlauf welches fließen soll (g / Zeiteinheit) Abfüllgeschwindigkeit, dies soll eine konstante Geschwindigkeit beim abfüllen geben egal bei welchem Füllstand.
+int intGewichtD = 1;                  // A.P. erlaubte Abweichung zu intGewicht  
+int Winkelmerker;                     // A.P. Merker für optimalen Winkel für nächste Befüllung
+int loop1_c;                          // A.P. Zähler für die Durchgänge  
+int kulanz_gr;                        // gewollte Überfüllung im Autokorrekturmodus in Gramm
+int winkel;                           // aktueller Servo-Winkel
+int winkel_hard_min = 0;              // Hard-Limit für Servo
+int winkel_hard_max = 180;            // Hard-Limit für Servo
+int winkel_min = 0;                   // konfigurierbar im Setup
+int winkel_max = 85;                  // konfigurierbar im Setup
+int winkel_fein = 35;                 // konfigurierbar im Setup
+float fein_dosier_gewicht = 60;       // float wegen Berechnung des Schliesswinkels
+int servo_aktiv = 0;                  // Servo aktivieren ja/nein
 #if USER == 2
-int kali_gewicht = 2000;            // frei wählbares Gewicht zum kalibrieren
+int kali_gewicht = 2000;              // frei wählbares Gewicht zum kalibrieren
 #elif USER == 3
-int kali_gewicht = 500;             // frei wählbares Gewicht zum kalibrieren
+int kali_gewicht = 500;               // frei wählbares Gewicht zum kalibrieren
 #else
-int kali_gewicht = 500;             // frei wählbares Gewicht zum kalibrieren
+int kali_gewicht = 500;               // frei wählbares Gewicht zum kalibrieren
 #endif
-char ausgabe[30];                   // Fontsize 12 = 13 Zeichen maximal in einer Zeile
-int modus = -1;                     // Bei Modus-Wechsel den Servo auf Minimum fahren
-int auto_aktiv = 0;                 // Für Automatikmodus - System ein/aus?
-int waage_vorhanden = 0;            // HX711 nicht ansprechen, wenn keine Waage angeschlossen ist, sonst Crash
-long preferences_chksum;            // Checksumme, damit wir nicht sinnlos Prefs schreiben
-int buzzermode = 0;                 // 0 = aus, 1 = ein.
-int ledmode = 0;                    // 0 = aus, 1 = ein.
-bool gezaehlt = true;               // Kud Zähl-Flag
-int glastoleranz = 20;              // Gewicht für autostart darf um +-20g schwanken, insgesamt also 40g!
-int MenuepunkteAnzahl;              // Anzahl Menüpunkte im Setupmenü
-int lastpos = 0;                    // Letzte position im Setupmenü
-int progressbar = 0;                // Variable für den Progressbar
-int showlogo = 1;                   // 0 = aus, 1 = ein
-int showcredits = 1;                // 0 = aus, 1 = ein
-int ina219_installed = 0;           // 0 = kein INA219 instaliert, 1 = INA219 ist instaliert
-int current_servo = 0;              // 0 = INA219 wird ignoriert, 1-1000 = erlaubter Maximalstrom vom Servo in mA
-int current_mA;                     // Strom welcher der Servo zieht
-int updatetime_ina219 = 500;        // Zeit in ms in welchem der INA219 gelesen wird (500 -> alle 0,5 sek wird eine Strommessung vorgenommen)
-int last_ina219_measurement = 0;    // Letzte Zeit in welcher der Strom gemessen wurde
-int overcurrenttime = 1500;         // Zeit in welcher der Servo mehr Strom ziehen darf als einfestellt in ms
-int last_overcurrenttime = 0;       // Letzte Zeit in welcher keinen Ueberstrom gemessen wurde
-int alarm_overcurrent = 0;          // Alarmflag wen der Servo zuwiel Strom zieht
-int show_current = 0;               // 0 = aus, 1 = ein / Zeige den Strom an auch wenn der INA ignoriert wird
-int inawatchdog = 1;                // 0 = aus, 1 = ein / wird benötigt um INA messung auszusetzen
-int offset_winkel = 0;              // Offset in Grad vom Schlieswinkel wen der Servo Übersrom hatte (max +3Grad vom eingestelten Winkel min)
-int color_scheme = 0;               // 0 = dunkel, 1 = hell / Wechsel vom color scheme für den TFT Display
-int color_marker = 2;               // Farbe für den Marker für das TFT Display
-int ota_done = 0;                   // Variable für OTA Update
-int use_turntable = 0;              // 0 = Drehteller wird nicht benützt, 1 = Drehteller wird benützt
-bool turntable_init = false;        // false = Drehteller Init nicht gemacht, true = Drehteller Init wurde gemacht.
-bool turntable_moving = false;
-bool drop_prodection = false;       // false = Tropfschutz ist offen, true = Tropfschutz ist zu
-bool turntable_ok = true;           // true wenn Glass verschoben und Tropfschutz offen ist. Wenn Drehteller nicht benützt wird ist der Wert default auf true
-bool turntable_init_check = true;
-bool esp_now_ini = false;           // true wenn esp now aktive ist
-char esp_now_textMsg[] = "";        // send String für ESP NOW 
-bool esp_now_msg_recived = false;   // true wenn etwas empfangen wurde
-bool esp_now_send_error = true;     // false = Daten wurden versendet, true = Daten wurden nicht versendet.
-int lingo = 0;                      // Variable for the language
+char ausgabe[30];                     // Fontsize 12 = 13 Zeichen maximal in einer Zeile
+int modus = -1;                       // Bei Modus-Wechsel den Servo auf Minimum fahren
+int auto_aktiv = 0;                   // Für Automatikmodus - System ein/aus?
+int waage_vorhanden = 0;              // HX711 nicht ansprechen, wenn keine Waage angeschlossen ist, sonst Crash
+long preferences_chksum;              // Checksumme, damit wir nicht sinnlos Prefs schreiben
+int buzzermode = 0;                   // 0 = aus, 1 = ein.
+int ledmode = 0;                      // 0 = aus, 1 = ein.
+bool gezaehlt = true;                 // Kud Zähl-Flag
+int glastoleranz = 20;                // Gewicht für autostart darf um +-20g schwanken, insgesamt also 40g!
+int MenuepunkteAnzahl;                // Anzahl Menüpunkte im Setupmenü
+int lastpos = 0;                      // Letzte position im Setupmenü
+int progressbar = 0;                  // Variable für den Progressbar
+int showlogo = 1;                     // 0 = aus, 1 = ein
+int showcredits = 1;                  // 0 = aus, 1 = ein
+int ina219_installed = 0;             // 0 = kein INA219 instaliert, 1 = INA219 ist instaliert
+int current_servo = 0;                // 0 = INA219 wird ignoriert, 1-1000 = erlaubter Maximalstrom vom Servo in mA
+int current_mA;                       // Strom welcher der Servo zieht
+int updatetime_ina219 = 500;          // Zeit in ms in welchem der INA219 gelesen wird (500 -> alle 0,5 sek wird eine Strommessung vorgenommen)
+int last_ina219_measurement = 0;      // Letzte Zeit in welcher der Strom gemessen wurde
+int overcurrenttime = 1500;           // Zeit in welcher der Servo mehr Strom ziehen darf als einfestellt in ms
+int last_overcurrenttime = 0;         // Letzte Zeit in welcher keinen Ueberstrom gemessen wurde
+int alarm_overcurrent = 0;            // Alarmflag wen der Servo zuwiel Strom zieht
+int show_current = 0;                 // 0 = aus, 1 = ein / Zeige den Strom an auch wenn der INA ignoriert wird
+int inawatchdog = 1;                  // 0 = aus, 1 = ein / wird benötigt um INA messung auszusetzen
+int offset_winkel = 0;                // Offset in Grad vom Schlieswinkel wen der Servo Übersrom hatte (max +3Grad vom eingestelten Winkel min)
+int color_scheme = 0;                 // 0 = dunkel, 1 = hell / Wechsel vom color scheme für den TFT Display
+int color_marker = 2;                 // Farbe für den Marker für das TFT Display
+int ota_done = 0;                     // Variable für OTA Update
+int use_turntable = 0;                // 0 = Drehteller wird nicht benützt, 1 = Drehteller wird benützt
+bool turntable_init = false;          // false = Drehteller Init nicht gemacht, true = Drehteller Init wurde gemacht.
+bool turntable_moving = false;        // Drehteller dreht nicht --> false, Drehteller ist sich am drehen --> true
+bool drop_prodection = false;         // false = Tropfschutz ist offen, true = Tropfschutz ist zu
+bool turntable_ok = true;             // true wenn Glass verschoben und Tropfschutz offen ist. Wenn Drehteller nicht benützt wird ist der Wert default auf true
+bool turntable_init_check = true;     // Drehteller ist an der korrekten Stelle --> true, Drehteller ist an einer falschen Stelle --> false
+bool turntable_jar_full_flag = false; // Wird gesetzt als true, wenn das Glass voll ist
+bool esp_now_ini = false;             // true wenn esp now aktive ist
+char esp_now_textMsg[] = "";          // send String für ESP NOW 
+bool esp_now_msg_recived = false;     // true wenn etwas empfangen wurde
+bool esp_now_send_error = true;       // false = Daten wurden versendet, true = Daten wurden nicht versendet.
+int lingo = 0;                        // Variable for the language
+bool jar_on_scale = false;            // Flag für Display Update im Automatikmodus
+bool stop_button_used = false;        // Wird true wenn im Automatik modus die Stop Taste gedrücht wird
 
 //Variablen für TFT update
 bool no_ina;
@@ -501,10 +506,17 @@ unsigned long  MARKER;
 
 //Drehteller
 #if DREHTELLER == 1
-  #include "./Resources/mac.h"
+  //0x74, 0x00, 0x00, 0x00, 0x00, 0x02
+  #if CHANGE_MAC_ADDRESS_TT == 0
+    #include "./Resources/mac.h"
+  #endif
+  #if CHANGE_MAC_ADDRESS_TT == 1
+    const uint8_t MacAdressTurntable[] = {0x74, 0x00, 0x00, 0x00, 0x00, 0x02};
+  #endif
   #if OTA == 0
     #include <WiFi.h>
   #endif
+  #include <esp_wifi.h>
   #include <esp_now.h>
   esp_now_peer_info_t peerInfo;
 
@@ -3316,7 +3328,7 @@ void setupDrehteller(void) {
     int menuitem_4;
     int MenuepunkteAnzahl_4 = 7;
     int last_menu_pos_4 = 0;
-    const char *menuepunkte_4[MenuepunkteAnzahl_4 - 1] = {OPEN_DROPPROTECTION[lingo], CLOSE_DROPPROTECTION[lingo], SPEED_DROPPROTECTION[lingo], WAIT_TO_OPEN_DP[lingo], DP_MIN_ANGLE[lingo], DP_MAX_ANGLE[lingo], SAVE[lingo]};
+    const char *menuepunkte_4[MenuepunkteAnzahl_4 - 1] = {OPEN_DROPPROTECTION[lingo], CLOSE_DROPPROTECTION[lingo], SPEED_DROPPROTECTION[lingo], WAIT_TO_CLOSE_DP[lingo], DP_MIN_ANGLE[lingo], DP_MAX_ANGLE[lingo], SAVE[lingo]};
     int last_use_turntable = use_turntable;
     bool wert_aendern = false;
     bool turntable_running = false;
@@ -3851,13 +3863,13 @@ void setupDrehteller(void) {
           i = 0;
         }
       }
-      if (i == 3) {
+      if (i == 3) {       //Menü Drehteller
         esp_now_msg_recived = false;
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
         strcpy(myMessageToBeSent.text, "speed_init");
         espnow_send_data();
         turntable_millis = millis();
-        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false and strcmp(myReceivedMessage.text, "ok_speed_init") != 0) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
           delay(10);
         }
         speed_init = speed_init_old = myReceivedMessage.value;
@@ -3866,7 +3878,7 @@ void setupDrehteller(void) {
         strcpy(myMessageToBeSent.text, "speed_run");
         espnow_send_data();
         turntable_millis = millis();
-        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false and strcmp(myReceivedMessage.text, "ok_speed_run") != 0) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
           delay(10);
         }
         speed_run = speed_run_old = myReceivedMessage.value;
@@ -4224,7 +4236,7 @@ void setupDrehteller(void) {
           #endif
         }
       }
-      if (i == 4) {
+      if (i == 4) {       //Menü Setup Tropfschutz
         setRotariesValue(SW_MENU, 0);       //Workaround --> noch suchen warum der Rotary Wert auf 2 ist
         ts_open_running = false;
         ts_close_running = false;
@@ -4234,7 +4246,7 @@ void setupDrehteller(void) {
         strcpy(myMessageToBeSent.text, "ts_angle_min");
         espnow_send_data();
         turntable_millis = millis();
-        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false and strcmp(myReceivedMessage.text, "ok_ts_angle_min") != 0) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
           delay(10);
         }
         ts_angle_min = ts_angle_min_old = ts_angle_min_start = myReceivedMessage.value;
@@ -4243,7 +4255,7 @@ void setupDrehteller(void) {
         strcpy(myMessageToBeSent.text, "ts_angle_max");
         espnow_send_data();
         turntable_millis = millis();
-        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false and strcmp(myReceivedMessage.text, "ok_ts_angle_max") != 0) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
           delay(10);
         }
         ts_angle_max = ts_angle_max_old = ts_angle_max_start = myReceivedMessage.value;
@@ -4252,7 +4264,7 @@ void setupDrehteller(void) {
         strcpy(myMessageToBeSent.text, "ts_waittime");
         espnow_send_data();
         turntable_millis = millis();
-        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false and strcmp(myReceivedMessage.text, "ok_ts_waittime") != 0) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
           delay(10);
         }
         ts_waittime = ts_waittime_old = myReceivedMessage.value;
@@ -4261,10 +4273,12 @@ void setupDrehteller(void) {
         strcpy(myMessageToBeSent.text, "ts_speed");
         espnow_send_data();
         turntable_millis = millis();
-        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
+        while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false and strcmp(myReceivedMessage.text, "ok_ts_speed") != 0) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
           delay(10);
         }
         ts_speed = ts_speed_old = myReceivedMessage.value;
+        esp_now_msg_recived = false;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
         //initRotaries(SW_MENU, menuitem_4, 0, MenuepunkteAnzahl_4 - 1, 1);
       }
       while (i == 4) {
@@ -4705,6 +4719,7 @@ void processSetup(void) {
     #endif
   }
 }
+
 void processAutomatik(void) {
   int zielgewicht;                 // Glas + Korrektur
   static int autokorrektur_gr = 0; 
@@ -4735,6 +4750,8 @@ void processAutomatik(void) {
     gewicht_vorher = glaeser[fmenge_index].Gewicht + korrektur;
     #if DREHTELLER == 1
       turntable_moving = false;
+      turntable_jar_full_flag = false;
+      stop_button_used = false;
       if (use_turntable == 1) {
         turntable_ok = false;
         strcpy(myMessageToBeSent.text, "close_drop_prodection");
@@ -4838,6 +4855,7 @@ void processAutomatik(void) {
       else {
         no_ina = false;
       }
+      jar_on_scale = false;
       glas_alt = -1;
       current_mA_alt = -1;
       korr_alt = -99999;
@@ -4969,16 +4987,8 @@ void processAutomatik(void) {
     auto_aktiv  = 0;
     tare_glas   = 0;
     #if DREHTELLER == 1
-      turntable_moving = false;
       if (use_turntable == 1) {
-        esp_now_msg_recived = false;
-        strcpy(myMessageToBeSent.text, "stop");
-        espnow_send_data();
-        time = millis();
-        while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
-          delay(10);
-        }
-        modus = -1;
+        stop_button_used = true;
       }
     #endif
   }
@@ -5016,6 +5026,7 @@ void processAutomatik(void) {
     #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
       // START: nicht schön aber es funktioniert (vieleicht mit Subprogrammen arbeiten damit es besser wird)
       //PLAY ICON setzen
+      jar_on_scale = false;
       gfx->fillRect(12, 44, 38, 38, BACKGROUND);
       gfx->setFont(Icons_Start_Stop);
       gfx->setCursor(5, 88);
@@ -5093,8 +5104,16 @@ void processAutomatik(void) {
   }
   zielgewicht = fmenge + korrektur + tare_glas + autokorrektur_gr;
   // Anpassung des Autokorrektur-Werts
-  if (autokorrektur == 1) {                                                       
-    if ( auto_aktiv == 1 && servo_aktiv == 0 && winkel == winkel_min + offset_winkel && gewicht >= zielgewicht && sammler_num <= 5) {     
+  if (autokorrektur == 1) {
+    /*Serial.println("-------");
+    Serial.print("auto_aktiv:                 "); Serial.println(auto_aktiv);
+    Serial.print("servo_aktiv:                "); Serial.println(servo_aktiv);  
+    Serial.print("winkel:                     "); Serial.println(winkel);  
+    Serial.print("winkel_min + offset_winkel: "); Serial.println(winkel_min + offset_winkel);  
+    Serial.print("gewicht:                    "); Serial.println(gewicht);
+    Serial.print("zielgewicht:                "); Serial.println(zielgewicht);  
+    Serial.print("sammler_num:                "); Serial.println(sammler_num);*/                                                 
+    if (auto_aktiv == 1 && servo_aktiv == 0 && winkel == winkel_min + offset_winkel && gewicht >= zielgewicht && sammler_num <= 5) {
       voll = true;                       
       if (gewicht == gewicht_vorher && sammler_num < 5) { // wir wollen 5x das identische Gewicht sehen  
         sammler_num++;
@@ -5114,6 +5133,11 @@ void processAutomatik(void) {
         }
         buzzer(BUZZER_SUCCESS);
         sammler_num++;                                      // Korrekturwert für diesen Durchlauf erreicht
+        #if DREHTELLER == 1
+          if (use_turntable == 1 and modus == MODE_AUTOMATIK) {
+            turntable_jar_full_flag = true;
+          }
+        #endif
       }
       if (voll == true && gezaehlt == false) {
         glaeser[fmenge_index].TripCount++;
@@ -5132,10 +5156,19 @@ void processAutomatik(void) {
     }
   }
   // Glas ist teilweise gefüllt. Start wird über Start-Taster erzwungen
-  if (auto_aktiv == 1 && gewicht > 5 && erzwinge_servo_aktiv == 1 and turntable_ok == true) {
+  if (auto_aktiv == 1 && gewicht > 5 && erzwinge_servo_aktiv == 1 && turntable_ok == true) {
     servo_aktiv = 1;
     voll = false;
     gezaehlt = false;
+    #if DREHTELLER == 1
+      /*Serial.println("------------");
+      Serial.print("use_turntable:        "); Serial.println(use_turntable);
+      Serial.print("turntable_init_check: "); Serial.println(turntable_init_check);
+      Serial.print("modus:                "); Serial.println(modus);*/
+      if (use_turntable == 1 and turntable_init_check == false and modus == MODE_AUTOMATIK) {
+        sammler_num = 0;
+      }
+    #endif
     buzzer(BUZZER_SHORT);
   }
   if (servo_aktiv == 1 && intGewicht <= 0) { 
@@ -5180,7 +5213,7 @@ void processAutomatik(void) {
   }
   // Glas ist voll
   if (servo_aktiv == 1 && gewicht >= zielgewicht) {
-    winkel      = winkel_min + offset_winkel;
+    winkel = winkel_min + offset_winkel;
     servo_aktiv = 0;
     if (gezaehlt == false) {
       glaeser[fmenge_index].TripCount++;
@@ -5517,16 +5550,20 @@ void processAutomatik(void) {
     }
     //Glas aufstellen
     if (tare > 0) {
-      if (gewicht < -20 and gewicht != gewicht_alt) {
+      if (gewicht < -20 and gewicht != gewicht_alt and jar_on_scale == false) {
+        jar_on_scale = true;
         gfx->fillRect(80, 24, 240, 80, BACKGROUND);
         gfx->setFont(Punk_Mono_Bold_320_200);
         gfx->setCursor(120, 58);
         gfx->print(PLEASE_PUT[lingo]);
         gfx->setCursor(120, 90);
         gfx->print(UP_THE_JAR[lingo]);
-        glas_alt = -1;
+        if (auto_aktiv == 1) {
+          glas_alt = -1;
+        }
       } 
-      else if (gewicht != gewicht_alt) {
+      else if (gewicht >= -20 and gewicht != gewicht_alt) {
+        jar_on_scale = false;
         gfx->fillRect(80, 24, 240, 80, BACKGROUND);
         gfx->setFont(Punk_Mono_Bold_600_375);
         gfx->setCursor(100, 85);
@@ -5552,6 +5589,7 @@ void processAutomatik(void) {
     }
     //kein Tara vorhanden
     else if (gewicht != gewicht_alt) {        //kein Tara vorhanden
+      jar_on_scale = false;
       gfx->fillRect(80, 24, 240, 80, BACKGROUND);
       gfx->fillRect(0, 107, 320, 15, BACKGROUND);
       gfx->setTextColor(RED);
@@ -5564,7 +5602,40 @@ void processAutomatik(void) {
   #endif
   //Turntable
   #if DREHTELLER == 1
-    if (use_turntable == 1 and turntable_init_check == true) {
+    if (use_turntable == 1 and stop_button_used == true and modus == MODE_AUTOMATIK) {
+      turntable_moving = false;
+      sammler_num = 0;
+      if (use_turntable == 1) {
+        esp_now_msg_recived = false;
+        //noch anderst machen. Stop gibt keine Meldung zurück. Eine eigene Subrutine auf dem Drehteller machen
+        strcpy(myMessageToBeSent.text, "stop");
+        espnow_send_data();
+        delay(100);
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "ts_waittime");
+        espnow_send_data();
+        time = millis();
+        while (!esp_now_msg_recived and millis() - time <= 3000) {
+          delay(10);
+        }
+        int ts_waittime = myReceivedMessage.value;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        esp_now_msg_recived = false;
+        strcpy(myMessageToBeSent.text, "close_drop_prodection");
+        espnow_send_data();
+        time = millis();
+        while (!esp_now_msg_recived and millis() - time <= 1000  and strcmp(myReceivedMessage.text, "") == 0) {
+          delay(10);
+        }
+        //Ende vom Gebastel
+        time = millis();
+        while (!esp_now_msg_recived and millis() - time <= ts_waittime * 1000 + 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+          delay(10);
+        }
+        modus = -1;
+      }
+    }
+    if (use_turntable == 1 and turntable_init_check == true and modus == MODE_AUTOMATIK) {
       esp_now_msg_recived = false;
       memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
       strcpy(myMessageToBeSent.text, "turn_off_stepper_init_check");
@@ -5576,8 +5647,11 @@ void processAutomatik(void) {
       if (strcmp(myReceivedMessage.text, "ok_off_init_check") == 0) {
         turntable_init_check = false;
       }
+      #ifdef TURNTABLE_DEBUG
+        Serial.print("turn_off_stepper_init_check - turntable_init_check = "); Serial.println(turntable_init_check);
+      #endif
     }
-    if (use_turntable == 1 and auto_aktiv == 1 and tare > 0) {
+    if (use_turntable == 1 and auto_aktiv == 1 and tare > 0 and modus == MODE_AUTOMATIK) {
       if (gewicht >= -20 and drop_prodection == 0 and turntable_moving == 0) {
         turntable_ok = true;
       } 
@@ -5613,9 +5687,7 @@ void processAutomatik(void) {
         }
       }
       //Glass ist voll
-      else if (gewicht >= zielgewicht and drop_prodection == 0 and turntable_moving == 0) {
-        SERVO_WRITE(winkel_min + offset_winkel);
-        delay(2000);      //lassen wir mal dem Servo Zeit um zu schliessen. haben es ja nicht eilig
+      else if (gewicht >= zielgewicht and drop_prodection == 0 and turntable_moving == 0 and servo_aktiv == 0 and sammler_num > 5 and turntable_jar_full_flag == true) {
         esp_now_msg_recived = false;
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
         strcpy(myMessageToBeSent.text, "close_drop_prodection");
@@ -5629,7 +5701,8 @@ void processAutomatik(void) {
         }
       }
       //Move Turntable
-      if ((gewicht < -20 and drop_prodection == 1 and turntable_moving == 0) or (gewicht >= zielgewicht and drop_prodection == 1 and turntable_moving == 0)) {
+      //if ((gewicht < -20 and drop_prodection == 1 and turntable_moving == 0) or (gewicht >= zielgewicht and drop_prodection == 1 and turntable_moving == 0)) {
+      if ((gewicht < -20 and drop_prodection == 1 and turntable_moving == 0) or (turntable_jar_full_flag == true and drop_prodection == 1 and turntable_moving == 0)) {
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
         esp_now_msg_recived = false;
         turntable_moving = true;
@@ -5640,9 +5713,24 @@ void processAutomatik(void) {
         esp_now_msg_recived = false;
         if (strcmp(myReceivedMessage.text, "ok_move_jar") == 0) {
           turntable_moving = false;
+          turntable_jar_full_flag = false;
         }
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
       }
+      /*Serial.println("-----------------");
+      Serial.print("auto_aktiv:              "); Serial.println(auto_aktiv);
+      Serial.print("tare:                    "); Serial.println(tare);
+      Serial.print("modus:                   "); Serial.println(modus);
+      Serial.print("gewicht:                 "); Serial.println(gewicht);
+      Serial.print("turntable_ok:            "); Serial.println(turntable_ok);
+      Serial.print("drop_prodection:         "); Serial.println(drop_prodection);
+      Serial.print("turntable_moving:        "); Serial.println(turntable_moving);
+      Serial.print("zielgewicht:             "); Serial.println(zielgewicht);
+      Serial.print("servo_aktiv:             "); Serial.println(servo_aktiv);
+      Serial.print("voll:                    "); Serial.println(voll);
+      Serial.print("sammler_num:             "); Serial.println(sammler_num);
+      Serial.print("esp_now_msg_recived:     "); Serial.println(esp_now_msg_recived);
+      Serial.print("turntable_jar_full_flag: "); Serial.println(turntable_jar_full_flag);*/
     }
   #endif
   //end Turntable
@@ -6095,6 +6183,14 @@ void setup() {
   //Drehteller
   #if DREHTELLER == 1
     WiFi.mode(WIFI_STA);
+    #if CHANGE_MAC_ADDRESS_HM == 1
+      uint8_t newMACAddress[] = {0x74, 0x00, 0x00, 0x00, 0x00, 0x01};
+      esp_err_t err = esp_wifi_set_mac(WIFI_IF_STA, &newMACAddress[0]);
+      #ifdef DEBUG
+        if (err == ESP_OK) {Serial.println("Success changing Mac Address");}
+        else {Serial.println("Fail changing Mac Address");}
+      #endif
+    #endif
     if (esp_now_init() == ESP_OK) {
       esp_now_ini =true;
       #ifdef isDebug
@@ -6107,7 +6203,6 @@ void setup() {
         Serial.println("ESPNow Init fail");
       #endif
     }
-    
     esp_now_register_send_cb(messageSent);  
     esp_now_register_recv_cb(messageReceived); 
     memcpy(peerInfo.peer_addr, MacAdressTurntable, 6);
@@ -6119,12 +6214,14 @@ void setup() {
         Serial.println("Failed to add peer");
       #endif
     }
-    unsigned long turntable_millis = millis();
-    esp_now_msg_recived = false;
-    strcpy(myMessageToBeSent.text, "close_drop_prodection");
-    espnow_send_data();
-    while (millis() - turntable_millis < 10000 and esp_now_msg_recived == false) {  //brechce ab wenn in 10 sek keine Rückmeldung kommt
-      delay(10);
+    if (use_turntable == 1) {
+      unsigned long turntable_millis = millis();
+      esp_now_msg_recived = false;
+      strcpy(myMessageToBeSent.text, "close_drop_prodection");
+      espnow_send_data();
+      while (millis() - turntable_millis < 1000 and esp_now_msg_recived == false) {  //brechce ab wenn in 10 sek keine Rückmeldung kommt
+        delay(10);
+      }
     }
   #endif
 }
