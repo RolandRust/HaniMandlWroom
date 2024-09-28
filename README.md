@@ -34,6 +34,9 @@ W.0.2
 - Automatischer Volumenstrom beim Abfüllen implementiert (Nicht von mir getestet)
 - Der HM kann nun auch über eine Sprachdatei die Menüsprache ändern (implementiert wurde bis jetzt Deutsch und Englisch)
 
+W.0.3
+- Integration vom Drehteller
+
 ## Copyright
 
 Die Software unterliegt dem gleichen Coryright und Anforderungen wie das Hauptprojekt.
