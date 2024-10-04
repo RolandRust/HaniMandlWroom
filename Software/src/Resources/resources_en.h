@@ -72,7 +72,7 @@ char CLEAR_NVS_MEMORY[]		= "Clear NVS memory";
 char TURNTABLE[]            = "Turntable";
 char INIT_TURNTABLE[]       = "Init Turntable";
 char SETUP_TURNTABLE[]      = "Setup Turntable";
-char SETUP_DROPPRODECTION[] = "Setup Dropprodection";
+char SETUP_DRIPPRODECTION[] = "Setup Dripprodection";
 //char ADJUST_JAR_POS[]       = "Adjust jar  pos.";			//Adjust jar  position
 //char STEPS[]                = "Steps";
 //char POSITION[]             = "Position";
@@ -85,15 +85,20 @@ char SETUP_SERVO[]          = "Setup servo";
 char OKKAY[]                = "ok";                         //ok [max 3 letters]
 char NOKAY[]                = "nok";                        //not ok [max 3 letters]
 char CENTER_JAR[]           = "Center jar";
-char OPEN_DROPPROTECTION[]  = "Open Dropprod.";             //open Dropprodection
-char CLOSE_DROPPROTECTION[] = "Close Dropprod.";            //close Dropprodection
-char SPEED_DROPPROTECTION[] = "Speed Dropprod.";            //speed Dropprodection
-char WAIT_TO_OPEN_DP[]      = "Wait to open DP";            //wait to open Dropprodection
-char DP_MIN_ANGLE[]         = "DP min angle";               //Dropprodection min angle
-char DP_MAX_ANGLE[]         = "DP max angle";               //Dropprodection max angle
+char OPEN_DRIPPROTECTION[]  = "Open Dripprod.";             //open Dripprodection
+char CLOSE_DRIPPROTECTION[] = "Close Dripprod.";            //close Dripprodection
+char SPEED_DRIPPROTECTION[] = "Speed Dripprod.";            //speed Dripprodection
+char WAIT_TO_CLOSE_DP[]     = "Wait to close DP";           //wait to open Dripprodection
+char DP_MIN_ANGLE[]         = "DP min angle";               //Dripprodection min angle
+char DP_MAX_ANGLE[]         = "DP max angle";               //Dripprodection max angle
 //Connection failed
 char CONNECTION[]           = "Connection";                 //Display: Connection
 char FAILED[]               = "failed";                     //         failed
+//Close drip protection wait time reading failed
+char CLOSE_DRIP_DP[]        = "Close drip";                 //Diaplay: Close drip
+char PROTECTION_WAIT_DP[]   = "protection wait";            //         protection wait
+char TIME_READING_DP[]      = "time reading";               //         time reading
+char FAILED_DP[]            = "failed";                     //         failed
 
 //Warnings
 //no scale!
