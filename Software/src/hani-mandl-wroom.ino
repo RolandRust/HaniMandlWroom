@@ -3320,7 +3320,7 @@ void setupDrehteller(void) {
     int menuitem_2;
     int MenuepunkteAnzahl_2 = 4;
     int last_menu_pos_2 = 0;
-    const char *menuepunkte_2[MenuepunkteAnzahl_2 - 1] = {TURNTABLE[lingo], SETUP_TURNTABLE[lingo], SETUP_DROPPRODECTION[lingo], SAVE[lingo]};
+    const char *menuepunkte_2[MenuepunkteAnzahl_2 - 1] = {TURNTABLE[lingo], SETUP_TURNTABLE[lingo], SETUP_DRIPPRODECTION[lingo], SAVE[lingo]};
     int menuitem_3;
     int MenuepunkteAnzahl_3 = 5;
     int last_menu_pos_3 = 0;
@@ -3328,7 +3328,7 @@ void setupDrehteller(void) {
     int menuitem_4;
     int MenuepunkteAnzahl_4 = 7;
     int last_menu_pos_4 = 0;
-    const char *menuepunkte_4[MenuepunkteAnzahl_4 - 1] = {OPEN_DROPPROTECTION[lingo], CLOSE_DROPPROTECTION[lingo], SPEED_DROPPROTECTION[lingo], WAIT_TO_CLOSE_DP[lingo], DP_MIN_ANGLE[lingo], DP_MAX_ANGLE[lingo], SAVE[lingo]};
+    const char *menuepunkte_4[MenuepunkteAnzahl_4 - 1] = {OPEN_DRIPPROTECTION[lingo], CLOSE_DRIPPROTECTION[lingo], SPEED_DRIPPROTECTION[lingo], WAIT_TO_CLOSE_DP[lingo], DP_MIN_ANGLE[lingo], DP_MAX_ANGLE[lingo], SAVE[lingo]};
     int last_use_turntable = use_turntable;
     bool wert_aendern = false;
     bool turntable_running = false;
