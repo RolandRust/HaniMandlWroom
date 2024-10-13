@@ -67,6 +67,7 @@ char CALIBRATION_DONE[]		= "Calibration done";
 //Setup Clear Preferenzes
 char CLEAR_PREFERENCES[]	= "Clear Preferences";
 char CLEAR_NVS_MEMORY[]		= "Clear NVS memory";
+char RESET_USE_TURNTABLE[]	= "Reset use turntable";
 
 //Setup Turntable
 char TURNTABLE[]            = "Turntable";
@@ -86,8 +87,8 @@ char OKKAY[]                = "ok";                         //ok [max 3 letters]
 char NOKAY[]                = "nok";                        //not ok [max 3 letters]
 char CENTER_JAR[]           = "Center jar";
 char OPEN_DRIPPROTECTION[]  = "Open Dripprod.";             //open Dripprodection
-char CLOSE_DRIPPROTECTION[] = "Close Dripprod.";            //close Dripprodection
-char SPEED_DRIPPROTECTION[] = "Speed Dripprod.";            //speed Dripprodection
+char CLOSE_DRIPPROTECTION[] = "Close Dripprodection";       //close Dripprodection
+char SPEED_DRIPPROTECTION[] = "Speed Dripprodection";       //speed Dripprodection
 char WAIT_TO_CLOSE_DP[]     = "Wait to close DP";           //wait to open Dripprodection
 char DP_MIN_ANGLE[]         = "DP min angle";               //Dripprodection min angle
 char DP_MAX_ANGLE[]         = "DP max angle";               //Dripprodection max angle
@@ -99,6 +100,7 @@ char CLOSE_DRIP_DP[]        = "Close drip";                 //Diaplay: Close dri
 char PROTECTION_WAIT_DP[]   = "protection wait";            //         protection wait
 char TIME_READING_DP[]      = "time reading";               //         time reading
 char FAILED_DP[]            = "failed";                     //         failed
+char ENABLE_OTA_UPDATE[]    = "Enable OTA Update";
 
 //Warnings
 //no scale!

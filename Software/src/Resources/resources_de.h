@@ -65,6 +65,7 @@ char CALIBRATION_DONE[]     = "Kalibration beendet";
 //Setup Clear Preferenzes
 char CLEAR_PREFERENCES[]    = "Lösche Preferences";
 char CLEAR_NVS_MEMORY[]     = "Lösche NVS Speicher";
+char RESET_USE_TURNTABLE[]	= "Reset use Drehteller";
 
 //Setup Turntable
 char TURNTABLE[]            = "Drehteller";
@@ -74,7 +75,7 @@ char SETUP_DRIPPRODECTION[] = "Setup Tropfschutz";
 //char ADJUST_JAR_POS[]       = "Glas Pos. anpassen";
 //char STEPS[]                = "Schritte";
 //char POSITION[]             = "Position";
-char MOVE_JAR[]             = "Versiebe Glas";
+char MOVE_JAR[]             = "Verschiebe Glas";
 char SPEED_INIT[]           = "Init Geschw.";
 char SPEED_RUN[]            = "Run Geschw.";
 char MOVE_POS[]             = "Verschiebe Pos.";
@@ -95,6 +96,7 @@ char CLOSE_DRIP_DP[]        = "Lesen Wartezeit";
 char PROTECTION_WAIT_DP[]   = "zum Schliessen";
 char TIME_READING_DP[]      = "des Tropfschutzes";
 char FAILED_DP[]            = "fehlgeschlagen";
+char ENABLE_OTA_UPDATE[]    = "OTA-Update aktivieren";
 
 //Warnings
 char NO[]                   = "Keine";
