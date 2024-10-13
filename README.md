@@ -1,4 +1,5 @@
 # !!! Entwickler Version NICHT GETESTET !!!
+## Kompiliert nur mit Visual Studio Code. Mit der Arduino IDE gibts Probleme!
 # HaniMandlWroom
 HaniMandel für das Node MCU ESP32 38Pin Evaluation Board<br>
 
