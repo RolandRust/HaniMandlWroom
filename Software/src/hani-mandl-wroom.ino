@@ -1,7 +1,7 @@
 // Waage erkennen
 
 /*
-  HaniMandl Version W.0.2
+  HaniMandl Version W.0.3
   ------------------------
   Copyright (C) 2018-2023 by Marc Vasterling, Marc Wetzel, Clemens Gruber, Marc Junker, Andreas Holzhammer, Johannes Kuder, Jeremias Bruker
             
@@ -134,7 +134,7 @@ String version = "W.0.3";
 //
 // Könnt ihr auf eins lassen. User 2 und User 3 haben andere Glaseinstellungen
 //
-#define USER 3                    // 1 = Hanimandl Standart (ist die default einstellung so wie Ihr es gewohnt seit)
+#define USER 1                    // 1 = Hanimandl Standart (ist die default einstellung so wie Ihr es gewohnt seit)
                                   // 2 = Gerold (Wird bei euch nicht funktionieren, da die Logos fehlen im ResPos)
                                   // 3 = Roli
 
@@ -148,7 +148,7 @@ String version = "W.0.3";
                                   // Sonst bleibt der Servo in Stop-Position einige Grad offen! Nach dem Update erst prüfen!
 #define ROTARY_SCALE 1            // in welchen Schritten springt unser Rotary Encoder. 
                                   // Beispiele: KY-040 = 2, HW-040 = 1, für Poti-Betrieb auf 1 setzen
-#define DISPLAY_TYPE 99            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
+#define DISPLAY_TYPE 3            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
                                   // 2 = 128x64 pixel OLED Display angeschlossen über SPI
                                   // 3 = 320x240 pixel TFT Display ST7789 angeschlossen über SPI
                                   // 99 = Oled über I2C und TFT über SPI für development
@@ -174,7 +174,7 @@ String version = "W.0.3";
                                 // mit 4 zusätzlich u.a. Durchlaufzeiten
                                 // mit 5 zusätzlich rotary debug-Infos
                                 // ACHTUNG: zu viel Serieller Output kann einen ISR-Watchdog Reset auslösen!
-#define ESP_NOW_DEBUG
+//#define ESP_NOW_DEBUG
 //#define TURNTABLE_DEBUG
 
 #if SCALE_TYP == 1
@@ -431,7 +431,7 @@ int ota_done = 0;                     // Variable für OTA Update
 int use_turntable = 0;                // 0 = Drehteller wird nicht benützt, 1 = Drehteller wird benützt
 bool turntable_init = false;          // false = Drehteller Init nicht gemacht, true = Drehteller Init wurde gemacht.
 bool turntable_moving = false;        // Drehteller dreht nicht --> false, Drehteller ist sich am drehen --> true
-bool drop_prodection = false;         // false = Tropfschutz ist offen, true = Tropfschutz ist zu
+bool drip_prodection = false;         // false = Tropfschutz ist offen, true = Tropfschutz ist zu
 bool turntable_ok = true;             // true wenn Glass verschoben und Tropfschutz offen ist. Wenn Drehteller nicht benützt wird ist der Wert default auf true
 bool turntable_init_check = true;     // Drehteller ist an der korrekten Stelle --> true, Drehteller ist an einer falschen Stelle --> false
 bool turntable_jar_full_flag = false; // Wird gesetzt als true, wenn das Glass voll ist
@@ -442,6 +442,9 @@ bool esp_now_send_error = true;       // false = Daten wurden versendet, true = 
 int lingo = 0;                        // Variable for the language
 bool jar_on_scale = false;            // Flag für Display Update im Automatikmodus
 bool stop_button_used = false;        // Wird true wenn im Automatik modus die Stop Taste gedrücht wird
+bool close_drip_protection = false;   // Flac für den Automatik Modus, das die TP geschlossen werden sollte
+int waittime_close_dp = 0;            // Tropfschutz schliessen Wartezeit im AUtomatik Modus
+int channel = 1;                      // Standart Kanalnummer für ESPnow. Wenn OTA aktiviert ist, wird diese gewechselt. Der Startup geht dann länger da der Kanal gesucht werden muss. Nur wenn Drehteller aktiviert ist
 
 //Variablen für TFT update
 bool no_ina;
@@ -534,11 +537,11 @@ unsigned long  MARKER;
   receivedMessage myReceivedMessage;
   
   void messageSent(const uint8_t *macAddr, esp_now_send_status_t status) {
-  #ifdef ESP_NOW_DEBUG
-    Serial.print("Send status: ");
-    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success":"Fail");
-  #endif
-  drop_prodection = true;
+    #ifdef ESP_NOW_DEBUG
+      Serial.print("Send status: ");
+      Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success":"Fail");
+    #endif
+    drip_prodection = true;   //warum habe ich das gemacht?
   }
   void messageReceived(const uint8_t* macAddr, const uint8_t* incomingData, int len){
     memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
@@ -2488,7 +2491,7 @@ void setupParameter(void) {
 }
 
 void setupClearPrefs(void) {
-  initRotaries(SW_MENU, 2, 0, 2, 1);
+  initRotaries(SW_MENU, 3, 0, 3, 1);
   int x_pos;
   #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
     int y_offset = 8;
@@ -2496,8 +2499,8 @@ void setupClearPrefs(void) {
   #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
     int y_offset_tft = 28;
     gfx->fillScreen(BACKGROUND);
-    int MenuepunkteAnzahl = 3;
-    const char *menuepunkte[MenuepunkteAnzahl - 1] = {CLEAR_PREFERENCES[lingo], CLEAR_NVS_MEMORY[lingo], BACK[lingo]};
+    int MenuepunkteAnzahl = 4;
+    const char *menuepunkte[MenuepunkteAnzahl - 1] = {CLEAR_PREFERENCES[lingo], CLEAR_NVS_MEMORY[lingo], RESET_USE_TURNTABLE[lingo], BACK[lingo]};
     gfx->setTextColor(TEXT);
     gfx->setFont(Punk_Mono_Bold_240_150);
     x_pos = CenterPosX(CLEAR_PREFERENCES[lingo], 14, 320);
@@ -2522,9 +2525,11 @@ void setupClearPrefs(void) {
       u8g2.print(CLEAR_PREFERENCES[lingo]);
       u8g2.setCursor(10, 2 * y_offset);
       u8g2.print(CLEAR_NVS_MEMORY[lingo]);
+      u8g2.setCursor(10, 3 * y_offset);
+      u8g2.print(RESET_USE_TURNTABLE[lingo]);
       u8g2.setCursor(10, (7 * y_offset) + 5);
       u8g2.print(BACK[lingo]);
-      if (pos == 2) {
+      if (pos == 3) {
         u8g2.setCursor(0, (7 * y_offset) + 7);
       }
       else {
@@ -2569,6 +2574,14 @@ void setupClearPrefs(void) {
         nvs_flash_init();     // initialize the NVS partition.
         //Da machen wir gerade einen restart
         ESP.restart();
+      }
+      else if (pos == 2) {
+        if (use_turntable == 1) {
+          use_turntable = 0;
+          setPreferences();
+          //Da machen wir gerade einen restart
+          ESP.restart();
+        }
       }
       #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
         u8g2.setCursor(115, (7 * y_offset) + 5);   
@@ -3310,25 +3323,43 @@ void setupLanguage(void) {
 void setupDrehteller(void) {
   //Start Menue
   #if DREHTELLER == 1
+    unsigned long time;
+    int ota_update = 0;
+    bool ota_update_enable = false;
+    int MenuepunkteAnzahl_2 = 4;
+    esp_now_msg_recived = false;
+    memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+    memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+    strcpy(myMessageToBeSent.text, "ota_update_status");
+    espnow_send_data();
+    time = millis();
+    while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+      delay(10);
+    }
+    if(strcmp(myReceivedMessage.text, "ok_ota_update_status") == 0) {
+      if (myReceivedMessage.value == 1) {
+        ota_update = 1;
+        MenuepunkteAnzahl_2 = 5;
+      }
+    }
     int x_pos;
     int k = 0;
-    unsigned long time;
     int menuitem_1;
     int MenuepunkteAnzahl_1 = 3;
     int last_menu_pos_1 = 0;
-    const char *menuepunkte_1[MenuepunkteAnzahl_1 - 1] = {TURNTABLE[lingo], INIT_TURNTABLE[lingo], SAVE[lingo]};
+    const char *menuepunkte_1[MenuepunkteAnzahl_1] = {TURNTABLE[lingo], INIT_TURNTABLE[lingo], SAVE[lingo]};
     int menuitem_2;
-    int MenuepunkteAnzahl_2 = 4;
+    //int MenuepunkteAnzahl_2 = 4;
     int last_menu_pos_2 = 0;
-    const char *menuepunkte_2[MenuepunkteAnzahl_2 - 1] = {TURNTABLE[lingo], SETUP_TURNTABLE[lingo], SETUP_DRIPPRODECTION[lingo], SAVE[lingo]};
+    const char *menuepunkte_2[MenuepunkteAnzahl_2] = {TURNTABLE[lingo], SETUP_TURNTABLE[lingo], SETUP_DRIPPRODECTION[lingo], SAVE[lingo]};
     int menuitem_3;
     int MenuepunkteAnzahl_3 = 5;
     int last_menu_pos_3 = 0;
-    const char *menuepunkte_3[MenuepunkteAnzahl_3 - 1] = {MOVE_JAR[lingo], CENTER_JAR[lingo], SPEED_INIT[lingo], SPEED_RUN[lingo], SAVE[lingo]};
+    const char *menuepunkte_3[MenuepunkteAnzahl_3] = {MOVE_JAR[lingo], CENTER_JAR[lingo], SPEED_INIT[lingo], SPEED_RUN[lingo], SAVE[lingo]};
     int menuitem_4;
     int MenuepunkteAnzahl_4 = 7;
     int last_menu_pos_4 = 0;
-    const char *menuepunkte_4[MenuepunkteAnzahl_4 - 1] = {OPEN_DRIPPROTECTION[lingo], CLOSE_DRIPPROTECTION[lingo], SPEED_DRIPPROTECTION[lingo], WAIT_TO_CLOSE_DP[lingo], DP_MIN_ANGLE[lingo], DP_MAX_ANGLE[lingo], SAVE[lingo]};
+    const char *menuepunkte_4[MenuepunkteAnzahl_4] = {OPEN_DRIPPROTECTION[lingo], CLOSE_DRIPPROTECTION[lingo], SPEED_DRIPPROTECTION[lingo], WAIT_TO_CLOSE_DP[lingo], DP_MIN_ANGLE[lingo], DP_MAX_ANGLE[lingo], SAVE[lingo]};
     int last_use_turntable = use_turntable;
     bool wert_aendern = false;
     bool turntable_running = false;
@@ -3387,7 +3418,7 @@ void setupDrehteller(void) {
     while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
       delay(10);
     }
-    if(strcmp(myReceivedMessage.text, "ok_init") == 0 or strcmp(myReceivedMessage.text, "nok_init") == 0) {
+    if(strcmp(myReceivedMessage.text, "ok_init") == 0 or strcmp(myReceivedMessage.text, "nok_init") == 0 or strcmp(myReceivedMessage.text, "init_error") == 0) {
       if(strcmp(myReceivedMessage.text, "ok_init") == 0) {
         turntable_init = true;
       }
@@ -3419,8 +3450,12 @@ void setupDrehteller(void) {
       #endif
       delay(4000);
     }
+    if (ota_update == 1) {
+      menuepunkte_2[MenuepunkteAnzahl_2 - 2] = ENABLE_OTA_UPDATE[lingo];
+      menuepunkte_2[MenuepunkteAnzahl_2 - 1] = SAVE[lingo];
+    }
     while (i > 0) {
-      //Menue 1
+      //Menue 1 (Turntable init nOK)
       while (i == 1) {
         if (turntable_init == true) {
           i = 2;
@@ -3508,11 +3543,12 @@ void setupDrehteller(void) {
           }
         }
         if (wert_aendern == false) {
-          menuitem_1 = getRotariesValue(SW_MENU);
-          if (use_turntable == 0) {
+          if (use_turntable == 0 and getRotariesValue(SW_MENU) != menuitem_1) {
+            menuitem_1 = getRotariesValue(SW_MENU);
             initRotaries(SW_MENU, menuitem_1, 0, 1, 1);
           }
-          else {
+          else if (getRotariesValue(SW_MENU) != menuitem_1) {
+            menuitem_1 = getRotariesValue(SW_MENU);
             initRotaries(SW_MENU, menuitem_1, 0, MenuepunkteAnzahl_1 - 1, 1);
           }
           #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -3668,6 +3704,7 @@ void setupDrehteller(void) {
           i = 0;
         }
       }
+      //Menu 2 (Turntable init OK)
       while (i == 2) {
         if (esp_now_msg_recived == true and strcmp(myReceivedMessage.text, "init_error") == 0) {
           esp_now_msg_recived = false;
@@ -3708,11 +3745,12 @@ void setupDrehteller(void) {
           return;
         }
         if (wert_aendern == false) {
-          menuitem_2 = getRotariesValue(SW_MENU);
-          if (use_turntable == 0) {
+          if (use_turntable == 0 and getRotariesValue(SW_MENU) != menuitem_2) {
+            menuitem_2 = getRotariesValue(SW_MENU);
             initRotaries(SW_MENU, menuitem_2, 0, 1, 1);
           }
-          else {
+          else if (getRotariesValue(SW_MENU) != menuitem_2) {
+            menuitem_2 = getRotariesValue(SW_MENU);
             initRotaries(SW_MENU, menuitem_2, 0, MenuepunkteAnzahl_2 - 1, 1);
           }
           #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -3744,9 +3782,13 @@ void setupDrehteller(void) {
             u8g2.print(menuepunkte_2[1]);
             u8g2.setCursor(10, 3 * y_offset);
             u8g2.print(menuepunkte_2[2]);
+            if (ota_update == 1) {
+              u8g2.setCursor(10, 4 * y_offset);
+              u8g2.print(menuepunkte_2[3]);
+            }
           }
           u8g2.setCursor(10, (7 * y_offset) + 5);
-          u8g2.print(menuepunkte_2[3]);
+          u8g2.print(menuepunkte_2[3 + ota_update]);
           if (wert_aendern == false && menuitem_2 < MenuepunkteAnzahl_2 - 1) {
             u8g2.setCursor(1, 10+((menuitem_2)*y_offset)); u8g2.print("*");
           }
@@ -3782,6 +3824,8 @@ void setupDrehteller(void) {
                         break;
                 case 2: sprintf(ausgabe,"");
                         break;
+                case 3: sprintf(ausgabe,"");
+                        break;
               }
               if (change) {
                 gfx->fillRect(251, 27+((j+1) * y_offset_tft)-19, 64, 27, BACKGROUND);
@@ -3800,6 +3844,7 @@ void setupDrehteller(void) {
               gfx->print(menuepunkte_2[j]);
             }
             if (use_turntable == false) {j++;j++;}
+            if (use_turntable == false and ota_update == true) {j++;}
             j++;
           }
         #endif
@@ -3817,6 +3862,8 @@ void setupDrehteller(void) {
                     break;
             case 2: i = 4;
                     break;
+            case 3: ota_update_enable = true;
+                    break;
           }
           #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
             wert_old = -1;
@@ -3833,6 +3880,237 @@ void setupDrehteller(void) {
               gfx->fillRect(0, 32, 320, 208, BACKGROUND);
             #endif
             break;
+          }
+        }
+        // Enable OTA update for the Turntable
+        int ota_status = 0;
+        if (ota_update_enable == true) {
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->fillScreen(BACKGROUND);
+            gfx->setTextColor(TEXT);
+            gfx->setFont(Punk_Mono_Bold_320_200);
+            sprintf(ausgabe, "ElegantOTA");
+            x_pos = CenterPosX(ausgabe, 18, 320);
+            gfx->setCursor(x_pos, 27);
+            gfx->print(ausgabe);
+            gfx->drawLine(0, 37, 320, 37, TEXT);
+          #endif
+        }
+        while (ota_update_enable == true) {
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.setFont(u8g2_font_courB14_tf);
+            sprintf(ausgabe, "Start WiFi");
+            x_pos = CenterPosX(ausgabe, 11, 128);
+            u8g2.setCursor(x_pos, 35);
+            u8g2.print(ausgabe);
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->setTextColor(TEXT);
+            gfx->setFont(Punk_Mono_Bold_320_200);
+            sprintf(ausgabe, "Start WiFi");
+            x_pos = CenterPosX(ausgabe, 18, 320);
+            gfx->setCursor(x_pos, 125);
+            gfx->print(ausgabe);
+          #endif
+          esp_now_msg_recived = false;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          strcpy(myMessageToBeSent.text, "enable_ota_update");
+          espnow_send_data();
+          time = millis();
+          while (!esp_now_msg_recived and millis() - time <= 16000 and strcmp(myReceivedMessage.text, "") == 0 and digitalRead(switch_setup_pin) == HIGH and digitalRead(button_stop_pin) == LOW) {
+            delay(10);
+          }
+          if (digitalRead(switch_setup_pin) == LOW or digitalRead(button_stop_pin) == HIGH) {
+            while (digitalRead(button_stop_pin) == HIGH) {
+              delay(10);
+            }
+            stop_button_used = true;
+            ota_update_enable = false;
+          }
+          if (strcmp(myReceivedMessage.text, "") != 0 and stop_button_used == false) {
+            ota_status = 1;     //Turntable has an IP adress
+            #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+              u8g2.clearBuffer();
+              u8g2.setFont(u8g2_font_courB08_tf);
+              sprintf(ausgabe, myReceivedMessage.text);
+              x_pos = CenterPosX(ausgabe, 6, 128);
+              u8g2.setCursor(x_pos, 35);
+              u8g2.print(ausgabe);
+              u8g2.sendBuffer();
+            #endif
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              gfx->fillRect(0, 150, 320, 22, BACKGROUND);
+              sprintf(ausgabe, myReceivedMessage.text);
+              x_pos = CenterPosX(ausgabe, 18, 320);
+              gfx->setCursor(x_pos, 170);
+              gfx->print(ausgabe);
+            #endif
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+            while ((ota_status == 1 or ota_status == 2) and stop_button_used == false) {
+              delay(1000);
+              if (digitalRead(switch_setup_pin) == LOW or digitalRead(button_stop_pin) == HIGH and ota_status == 1) {
+                while (digitalRead(button_stop_pin) == HIGH) {
+                  delay(10);
+                }
+                stop_button_used = true;
+                ota_update_enable = false;
+              }
+              if (strcmp(myReceivedMessage.text, "") != 0 and strcmp(myReceivedMessage.text, "Success") != 0 and strcmp(myReceivedMessage.text, "Fail") != 0) {
+                ota_status = 2;     //OTA Update ist am laufen
+                #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+                  u8g2.clearBuffer();
+                  u8g2.setFont(u8g2_font_courB08_tf);
+                  u8g2.setCursor(1, 10);
+                  u8g2.print("OTA Progress:");
+                  u8g2.setCursor(1, 25);
+                  sprintf(ausgabe, "Current: %s", myReceivedMessage.text);
+                  u8g2.print(ausgabe);
+                  u8g2.setCursor(1, 35);
+                  sprintf(ausgabe, "Final:   %i", myReceivedMessage.value);
+                  u8g2.print(ausgabe);
+                  u8g2.sendBuffer();
+                #endif
+                #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+                  gfx->fillRect(0, 38, 320, 202, BACKGROUND);
+                  gfx->setTextColor(TEXT);
+                  gfx->setFont(Punk_Mono_Bold_320_200);
+                  gfx->setCursor(10, 100);
+                  gfx->print("OTA Progress:");
+                  gfx->setCursor(10, 140);
+                  sprintf(ausgabe, "Current: %s", myReceivedMessage.text);
+                  gfx->print(ausgabe);
+                  gfx->setCursor(10, 170);
+                  sprintf(ausgabe, "Final:   %i", myReceivedMessage.value);
+                  gfx->print(ausgabe);
+                #endif
+                if (strcmp(myReceivedMessage.text, "Success") != 0 or strcmp(myReceivedMessage.text, "Fail") != 0) {
+                  memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+                }
+              }
+              else if (strcmp(myReceivedMessage.text, "Success") == 0 or strcmp(myReceivedMessage.text, "Fail") == 0) {
+                ota_status = 3;     //OTA Update ist fertig oder hat einen Error
+              }
+            }
+            while (ota_status == 3) {
+              ota_status = 4;     //verlasse OTA
+              ota_update_enable = false;
+              i = 0;
+              int x_pos;
+              if (strcmp(myReceivedMessage.text, "Success") == 0) {
+                #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+                  u8g2.clearBuffer();
+                  u8g2.setFont(u8g2_font_courB08_tf);
+                  sprintf(ausgabe, "Successfully");
+                  x_pos = CenterPosX(ausgabe, 6, 128);
+                  u8g2.setCursor(x_pos, 35);
+                  u8g2.print(ausgabe);
+                  u8g2.sendBuffer();
+                #endif
+                #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+                  gfx->fillScreen(BACKGROUND);
+                  gfx->setTextColor(GREEN);
+                  gfx->setFont(Punk_Mono_Bold_320_200);
+                  sprintf(ausgabe, "Successfully");
+                  x_pos = CenterPosX(ausgabe, 18, 320);
+                  gfx->setCursor(x_pos, 150);
+                  gfx->print(ausgabe);
+                #endif
+                ota_done = 1;
+                #ifdef isDebug
+                  Serial.println("OTA update finished successfully!");
+                #endif
+              } 
+              else {
+                #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+                  u8g2.clearBuffer();
+                  u8g2.clearBuffer();
+                  u8g2.setFont(u8g2_font_courB08_tf);
+                  sprintf(ausgabe, "Error");
+                  x_pos = CenterPosX(ausgabe, 6, 128);
+                  u8g2.setCursor(x_pos, 35);
+                  u8g2.print(ausgabe);
+                  u8g2.sendBuffer();
+                #endif
+                #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+                  gfx->fillScreen(BACKGROUND);
+                  gfx->setTextColor(RED);
+                  gfx->setFont(Punk_Mono_Bold_320_200);
+                  sprintf(ausgabe, "Error");
+                  x_pos = CenterPosX(ausgabe, 18, 320);
+                  gfx->setCursor(x_pos, 150);
+                  gfx->print(ausgabe);
+                #endif
+                #ifdef isDebug
+                  Serial.println("There was an error during OTA update!");
+                #endif
+              }
+              memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+              delay(5000);
+            }
+          }
+          else if (ota_status == 0) {
+            ota_update_enable = false;
+            #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+              u8g2.clearBuffer();
+              u8g2.setFont(u8g2_font_courB14_tf);
+              sprintf(ausgabe, "Start WiFi");
+              x_pos = CenterPosX(ausgabe, 11, 128);
+              u8g2.setCursor(x_pos, 25);
+              u8g2.print(ausgabe);
+              sprintf(ausgabe, "failed");
+              x_pos = CenterPosX(ausgabe, 11, 128);
+              u8g2.setCursor(x_pos, 45);
+              u8g2.print(ausgabe);
+              u8g2.sendBuffer();
+            #endif
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              gfx->fillRect(0, 150, 320, 22, BACKGROUND);
+              gfx->setTextColor(RED);
+              gfx->setFont(Punk_Mono_Bold_320_200);
+              sprintf(ausgabe, "failed");
+              x_pos = CenterPosX(ausgabe, 18, 320);
+              gfx->setCursor(x_pos, 170);
+              gfx->print(ausgabe);
+            #endif
+            delay(5000);
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              gfx->fillScreen(BACKGROUND);
+              gfx->setTextColor(TEXT);
+              gfx->setFont(Punk_Mono_Bold_240_150);
+              x_pos = CenterPosX(TURNTABLE[lingo], 14, 320);
+              gfx->setCursor(x_pos, 25);
+              gfx->println(TURNTABLE[lingo]);
+              gfx->drawLine(0, 30, 320, 30, TEXT);
+            #endif
+          }
+          //if (digitalRead(switch_setup_pin) == LOW or digitalRead(button_stop_pin) == HIGH) {
+          //  while (digitalRead(button_stop_pin) == HIGH) {
+          //    delay(10);
+          //  }
+          //}
+          if (ota_update_enable == false) {
+            //OTA verlassen
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+            esp_now_msg_recived = false;
+            strcpy(myMessageToBeSent.text, "stop_ota_update");
+            espnow_send_data();
+            time = millis();
+            while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+              delay(10);
+            }
+            wert_aendern = false;
+            stop_button_used = false;
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              gfx->fillScreen(BACKGROUND);
+              gfx->setTextColor(TEXT);
+              gfx->setFont(Punk_Mono_Bold_240_150);
+              x_pos = CenterPosX(TURNTABLE[lingo], 14, 320);
+              gfx->setCursor(x_pos, 25);
+              gfx->println(TURNTABLE[lingo]);
+              gfx->drawLine(0, 30, 320, 30, TEXT);
+            #endif
           }
         }
         // Änderung im Menupunkt übernehmen
@@ -4002,7 +4280,7 @@ void setupDrehteller(void) {
             memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
           }
         }
-        if (wert_aendern == false) {
+        if (wert_aendern == false and getRotariesValue(SW_MENU) != menuitem_3) {
           menuitem_3 = getRotariesValue(SW_MENU);
           initRotaries(SW_MENU, menuitem_3, 0, MenuepunkteAnzahl_3 - 1, 1);
           #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -4012,7 +4290,7 @@ void setupDrehteller(void) {
             menuitem_3 = 7;
           }
         }
-        else {
+        else if (getRotariesValue(SW_MENU) != menuitem_3) {
           switch (menuitem_3) {
             case 1: jar_center_pos = getRotariesValue(SW_MENU);
                     break;
@@ -4329,7 +4607,7 @@ void setupDrehteller(void) {
             memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
           }
         }
-        if (wert_aendern == false) {
+        if (wert_aendern == false and getRotariesValue(SW_MENU) != menuitem_4) {
           menuitem_4 = getRotariesValue(SW_MENU);
           initRotaries(SW_MENU, menuitem_4, 0, MenuepunkteAnzahl_4 - 1, 1);
           #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
@@ -4339,7 +4617,7 @@ void setupDrehteller(void) {
             menuitem_4 = 7;
           }
         }
-        else {
+        else if (getRotariesValue(SW_MENU) != menuitem_4) {
           switch (menuitem_4) {
             case 2:ts_speed = getRotariesValue(SW_MENU);
                     break;
@@ -4464,14 +4742,14 @@ void setupDrehteller(void) {
             case 1: ts_close_running = true;
                     turntable_millis = millis();
                     esp_now_msg_recived = false;
-                    strcpy(myMessageToBeSent.text, "close_drop_prodection");
+                    strcpy(myMessageToBeSent.text, "close_drop_prodection");      //braucht keine Wartezeit
                     espnow_send_data();
                     break;
             case 2: rotary_select = SW_MENU;
                     initRotaries(SW_MENU, ts_speed, 0, 500, 10);
                     break;
             case 3: rotary_select = SW_MENU;
-                    initRotaries(SW_MENU, ts_waittime, 0, 120, 1);
+                    initRotaries(SW_MENU, ts_waittime, 2, 120, 1);
                     break;
             case 4: rotary_select = SW_MENU;
                     initRotaries(SW_MENU, ts_angle_min, 0, ts_angle_max, 5);
@@ -4731,11 +5009,9 @@ void processAutomatik(void) {
   int loop1 = 3;                   // anzahl alle wieviel Durchgänge die auto Servo einstellung gemacht werden soll A.P.
   int n;
   int y_offset = 0;
+  int x_pos;
   #if DREHTELLER == 1
     unsigned long time;
-  #endif
-  #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-      int x_pos;
   #endif
   if (modus != MODE_AUTOMATIK) {
     winkel = winkel_min;          // Hahn schliessen
@@ -4747,19 +5023,27 @@ void processAutomatik(void) {
     offset_winkel = 0;            // Offset vom Winkel wird auf 0 gestellt
     initRotaries(SW_MENU, fmenge_index, 0, 4, 1);
     setRotariesValue(SW_FLUSS, intGewicht);  //warum auch immer :-)
+    drip_prodection = true;
     gewicht_vorher = glaeser[fmenge_index].Gewicht + korrektur;
     #if DREHTELLER == 1
       turntable_moving = false;
       turntable_jar_full_flag = false;
       stop_button_used = false;
+      esp_now_msg_recived = false;
+      close_drip_protection = false;
+      memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
       if (use_turntable == 1) {
         turntable_ok = false;
-        strcpy(myMessageToBeSent.text, "close_drop_prodection");
+        strcpy(myMessageToBeSent.text, "close_drop_prodection");    //braucht keine Wartezeit
         espnow_send_data();
       }
       else {
         strcpy(myMessageToBeSent.text, "open_drop_prodection");
         espnow_send_data();
+      }
+      time = millis();
+      while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+        delay(10);
       }
       if (use_turntable == 1) {
         #ifdef ESP_NOW_DEBUG
@@ -4837,6 +5121,57 @@ void processAutomatik(void) {
             x_pos = CenterPosX(NOKAY[lingo], 18, 320);
             gfx->setCursor(x_pos, 150);
             gfx->println(NOKAY[lingo]);
+            gfx->setTextColor(TEXT);
+          #endif
+          while (digitalRead(switch_betrieb_pin) == HIGH) {
+            if (digitalRead(switch_betrieb_pin) == HIGH) {delay(10);}
+          }
+        }
+        esp_now_msg_recived = false;
+        waittime_close_dp = 0;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        strcpy(myMessageToBeSent.text, "ts_waittime");
+        espnow_send_data();
+        time = millis();
+        while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+          delay(10);
+        }
+        if (strcmp(myReceivedMessage.text, "ok_ts_waittime") == 0) {
+          waittime_close_dp = myReceivedMessage.value;
+        }
+        if (waittime_close_dp <= 0) {
+          #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+            u8g2.clearBuffer();
+            u8g2.setFont(u8g2_font_courB08_tf);
+            x_pos = CenterPosX(CLOSE_DRIP_DP[lingo], 6, 128);
+            u8g2.setCursor(x_pos,18);  
+            u8g2.print(CLOSE_DRIP_DP[lingo]);
+            x_pos = CenterPosX(PROTECTION_WAIT_DP[lingo], 6, 128);
+            u8g2.setCursor(x_pos,28);  
+            u8g2.print(PROTECTION_WAIT_DP[lingo]);
+            x_pos = CenterPosX(TIME_READING_DP[lingo], 6, 128);
+            u8g2.setCursor(x_pos,38);  
+            u8g2.print(TIME_READING_DP[lingo]);
+            x_pos = CenterPosX(FAILED_DP[lingo], 6, 128);
+            u8g2.setCursor(x_pos,48);  
+            u8g2.print(FAILED_DP[lingo]);
+            u8g2.sendBuffer();
+          #endif
+          #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+            gfx->setTextColor(RED);
+            gfx->setFont(Punk_Mono_Bold_320_200);
+            x_pos = CenterPosX(CLOSE_DRIP_DP[lingo], 18, 320);
+            gfx->setCursor(x_pos, 90);
+            gfx->println(CLOSE_DRIP_DP[lingo]);
+            x_pos = CenterPosX(PROTECTION_WAIT_DP[lingo], 18, 320);
+            gfx->setCursor(x_pos, 120);
+            gfx->println(PROTECTION_WAIT_DP[lingo]);
+            x_pos = CenterPosX(TIME_READING_DP[lingo], 18, 320);
+            gfx->setCursor(x_pos, 150);
+            gfx->println(TIME_READING_DP[lingo]);
+            x_pos = CenterPosX(FAILED_DP[lingo], 18, 320);
+            gfx->setCursor(x_pos, 180);
+            gfx->println(FAILED_DP[lingo]);
             gfx->setTextColor(TEXT);
           #endif
           while (digitalRead(switch_betrieb_pin) == HIGH) {
@@ -4982,6 +5317,9 @@ void processAutomatik(void) {
     #endif
   }
   if (digitalRead(button_stop_pin) == HIGH) {
+    while(digitalRead(button_stop_pin) == HIGH) {
+       delay(1);
+    }
     winkel      = winkel_min + offset_winkel;
     servo_aktiv = 0;
     auto_aktiv  = 0;
@@ -5082,7 +5420,7 @@ void processAutomatik(void) {
       #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
         gfx->fillRect(109, 136, 211, 27, BACKGROUND);
         gfx->setFont(Punk_Mono_Thin_240_150);
-        sprintf(ausgabe, "%s:%dg ", TARE_JAR, tare_glas);
+        sprintf(ausgabe, "%s:%dg ", TARE_JAR[lingo], tare_glas);
         int i = StringLenght(ausgabe);
         gfx->setCursor(320 - 14 * i, 156);
         gfx->print(ausgabe);
@@ -5104,15 +5442,7 @@ void processAutomatik(void) {
   }
   zielgewicht = fmenge + korrektur + tare_glas + autokorrektur_gr;
   // Anpassung des Autokorrektur-Werts
-  if (autokorrektur == 1) {
-    /*Serial.println("-------");
-    Serial.print("auto_aktiv:                 "); Serial.println(auto_aktiv);
-    Serial.print("servo_aktiv:                "); Serial.println(servo_aktiv);  
-    Serial.print("winkel:                     "); Serial.println(winkel);  
-    Serial.print("winkel_min + offset_winkel: "); Serial.println(winkel_min + offset_winkel);  
-    Serial.print("gewicht:                    "); Serial.println(gewicht);
-    Serial.print("zielgewicht:                "); Serial.println(zielgewicht);  
-    Serial.print("sammler_num:                "); Serial.println(sammler_num);*/                                                 
+  if (autokorrektur == 1) {                                       
     if (auto_aktiv == 1 && servo_aktiv == 0 && winkel == winkel_min + offset_winkel && gewicht >= zielgewicht && sammler_num <= 5) {
       voll = true;                       
       if (gewicht == gewicht_vorher && sammler_num < 5) { // wir wollen 5x das identische Gewicht sehen  
@@ -5161,10 +5491,6 @@ void processAutomatik(void) {
     voll = false;
     gezaehlt = false;
     #if DREHTELLER == 1
-      /*Serial.println("------------");
-      Serial.print("use_turntable:        "); Serial.println(use_turntable);
-      Serial.print("turntable_init_check: "); Serial.println(turntable_init_check);
-      Serial.print("modus:                "); Serial.println(modus);*/
       if (use_turntable == 1 and turntable_init_check == false and modus == MODE_AUTOMATIK) {
         sammler_num = 0;
       }
@@ -5265,9 +5591,9 @@ void processAutomatik(void) {
         u8g2.setCursor(37, 43 + y_offset); u8g2.print(UP_THE_JAR[lingo]);
       } 
       else {
-        if(autostart == 1 && auto_aktiv == 1 && servo_aktiv == 0 && gewicht >= -5 && gewicht - tare_glas < fmenge) {
+        if(autostart == 1 && auto_aktiv == 1 && servo_aktiv == 0 && gewicht >= -5 && gewicht - tare_glas < fmenge and turntable_ok == true and voll == false) {
           u8g2.setFont(u8g2_font_unifont_t_symbols);
-          u8g2.drawGlyph(14, 38 + y_offset, 0x2612);
+          u8g2.drawGlyph(14, 38 + y_offset, 0x2612);      //[x] Graph
           u8g2.setFont(u8g2_font_courB24_tf);
         }
         u8g2.setCursor(10, 42 + y_offset);
@@ -5552,7 +5878,7 @@ void processAutomatik(void) {
     if (tare > 0) {
       if (gewicht < -20 and gewicht != gewicht_alt and jar_on_scale == false) {
         jar_on_scale = true;
-        gfx->fillRect(80, 24, 240, 80, BACKGROUND);
+        gfx->fillRect(70, 23, 250, 80, BACKGROUND);
         gfx->setFont(Punk_Mono_Bold_320_200);
         gfx->setCursor(120, 58);
         gfx->print(PLEASE_PUT[lingo]);
@@ -5564,7 +5890,7 @@ void processAutomatik(void) {
       } 
       else if (gewicht >= -20 and gewicht != gewicht_alt) {
         jar_on_scale = false;
-        gfx->fillRect(80, 24, 240, 80, BACKGROUND);
+        gfx->fillRect(70, 23, 250, 80, BACKGROUND);
         gfx->setFont(Punk_Mono_Bold_600_375);
         gfx->setCursor(100, 85);
         sprintf(ausgabe, "%5ig", gewicht - tare_glas);
@@ -5590,7 +5916,7 @@ void processAutomatik(void) {
     //kein Tara vorhanden
     else if (gewicht != gewicht_alt) {        //kein Tara vorhanden
       jar_on_scale = false;
-      gfx->fillRect(80, 24, 240, 80, BACKGROUND);
+      gfx->fillRect(70, 23, 250, 80, BACKGROUND);
       gfx->fillRect(0, 107, 320, 15, BACKGROUND);
       gfx->setTextColor(RED);
       gfx->setFont(Punk_Mono_Bold_320_200);
@@ -5607,33 +5933,18 @@ void processAutomatik(void) {
       sammler_num = 0;
       if (use_turntable == 1) {
         esp_now_msg_recived = false;
-        //noch anderst machen. Stop gibt keine Meldung zurück. Eine eigene Subrutine auf dem Drehteller machen
-        strcpy(myMessageToBeSent.text, "stop");
-        espnow_send_data();
-        delay(100);
-        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-        strcpy(myMessageToBeSent.text, "ts_waittime");
-        espnow_send_data();
-        time = millis();
-        while (!esp_now_msg_recived and millis() - time <= 3000) {
-          delay(10);
-        }
-        int ts_waittime = myReceivedMessage.value;
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
         esp_now_msg_recived = false;
-        strcpy(myMessageToBeSent.text, "close_drop_prodection");
+        strcpy(myMessageToBeSent.text, "stop");
         espnow_send_data();
         time = millis();
         while (!esp_now_msg_recived and millis() - time <= 1000  and strcmp(myReceivedMessage.text, "") == 0) {
           delay(10);
         }
-        //Ende vom Gebastel
-        time = millis();
-        while (!esp_now_msg_recived and millis() - time <= ts_waittime * 1000 + 1000 and strcmp(myReceivedMessage.text, "") == 0) {
-          delay(10);
-        }
-        modus = -1;
+        close_drip_protection = true;
+        //modus = -1;     //könnte mir noch Probleme machen. habs ja gewusst :-)
       }
+      stop_button_used = false;
     }
     if (use_turntable == 1 and turntable_init_check == true and modus == MODE_AUTOMATIK) {
       esp_now_msg_recived = false;
@@ -5652,14 +5963,14 @@ void processAutomatik(void) {
       #endif
     }
     if (use_turntable == 1 and auto_aktiv == 1 and tare > 0 and modus == MODE_AUTOMATIK) {
-      if (gewicht >= -20 and drop_prodection == 0 and turntable_moving == 0) {
+      if (gewicht >= -20 and drip_prodection == 0 and turntable_moving == 0) {
         turntable_ok = true;
       } 
       else {
         turntable_ok = false;
       }
       //Glass ist auf der Waage
-      if (gewicht >= -20 and drop_prodection == 1 and turntable_moving == 0 and gewicht <= zielgewicht) {
+      if (gewicht >= -20 and drip_prodection == 1 and turntable_moving == 0 and gewicht <= zielgewicht) {
         esp_now_msg_recived = false;
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
         strcpy(myMessageToBeSent.text, "open_drop_prodection");
@@ -5669,47 +5980,93 @@ void processAutomatik(void) {
           delay(10);
         }
         if (strcmp(myReceivedMessage.text, "ok_open_dp") == 0) {
-          drop_prodection = false;
+          drip_prodection = false;
         }
       }
       //Glass wurde von der Waage entfernt
-      else if (gewicht < -20 and drop_prodection == 0 and turntable_moving == 0) {
-        esp_now_msg_recived = false;
-        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-        strcpy(myMessageToBeSent.text, "close_drop_prodection");
-        espnow_send_data();
-        time = millis();
-        while (!esp_now_msg_recived and millis() - time <= 60000 and strcmp(myReceivedMessage.text, "") == 0) {
-          delay(10);
-        }
-        if (strcmp(myReceivedMessage.text, "ok_close_dp") == 0) {
-          drop_prodection = true;
-        }
+      else if (gewicht < -20 and drip_prodection == 0 and turntable_moving == 0) {
+        close_drip_protection = true;
       }
       //Glass ist voll
-      else if (gewicht >= zielgewicht and drop_prodection == 0 and turntable_moving == 0 and servo_aktiv == 0 and sammler_num > 5 and turntable_jar_full_flag == true) {
-        esp_now_msg_recived = false;
-        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-        strcpy(myMessageToBeSent.text, "close_drop_prodection");
-        espnow_send_data();
+      else if (gewicht >= zielgewicht and drip_prodection == 0 and turntable_moving == 0 and servo_aktiv == 0 and sammler_num > 5 and turntable_jar_full_flag == true) {
+        close_drip_protection = true;
+      }
+      if (close_drip_protection == true and drip_prodection == 0) {
         time = millis();
-        while (!esp_now_msg_recived and millis() - time <= 60000 and strcmp(myReceivedMessage.text, "") == 0) {
-          delay(10);
+        int update_display_time = 0;
+        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+          gfx->fillRect(70, 23, 250, 80, BACKGROUND);
+          gfx->setFont(Punk_Mono_Bold_160_100);
+          gfx->setCursor(75, 70);
+          sprintf(ausgabe,"%s: ", CLOSE_DRIPPROTECTION[lingo]);
+          gfx->print(ausgabe);
+        #endif
+        while (millis() - time <= waittime_close_dp * 1000 and digitalRead(switch_betrieb_pin) == HIGH) {
+          if (millis() - time >= update_display_time) {
+            #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+              u8g2.clearBuffer();
+              u8g2.setFont(u8g2_font_courB08_tf);
+              x_pos = CenterPosX(CLOSE_DRIPPROTECTION[lingo], 6, 128);
+              u8g2.setCursor(x_pos,20);
+              u8g2.print(CLOSE_DRIPPROTECTION[lingo]);
+              u8g2.setFont(u8g2_font_courB12_tf);
+              sprintf(ausgabe,"%i", waittime_close_dp - (update_display_time / 1000));
+              x_pos = CenterPosX(ausgabe, 10, 128);
+              u8g2.setCursor(x_pos,38);
+              u8g2.print(ausgabe);
+              u8g2.sendBuffer();
+            #endif
+            #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+              gfx->fillRect(277, 54, 43, 20, BACKGROUND);
+              gfx->setCursor(278, 70);
+              sprintf(ausgabe,"%3is", waittime_close_dp - (update_display_time / 1000));
+              gfx->print(ausgabe);
+            #endif
+            update_display_time = update_display_time + 1000;
+          }
+          else {
+            delay(10);
+          }
         }
-        if (strcmp(myReceivedMessage.text, "ok_close_dp") == 0) {
-          drop_prodection = true;
+        if (digitalRead(switch_betrieb_pin) == HIGH) {   //nur schliessen wenn im Automatik Modus
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          esp_now_msg_recived = false;
+          strcpy(myMessageToBeSent.text, "close_drop_prodection");
+          espnow_send_data();
+          time = millis();
+          while (!esp_now_msg_recived and millis() - time <= 1000  and strcmp(myReceivedMessage.text, "") == 0) {
+            delay(10);
+          }
+          if (strcmp(myReceivedMessage.text, "ok_close_dp") == 0) {
+            drip_prodection = true;
+          }
         }
+        close_drip_protection = false;
       }
       //Move Turntable
-      //if ((gewicht < -20 and drop_prodection == 1 and turntable_moving == 0) or (gewicht >= zielgewicht and drop_prodection == 1 and turntable_moving == 0)) {
-      if ((gewicht < -20 and drop_prodection == 1 and turntable_moving == 0) or (turntable_jar_full_flag == true and drop_prodection == 1 and turntable_moving == 0)) {
+      if ((gewicht < -20 and drip_prodection == 1 and turntable_moving == 0 and digitalRead(switch_betrieb_pin) == HIGH) or (turntable_jar_full_flag == true and drip_prodection == 1 and turntable_moving == 0 and digitalRead(switch_betrieb_pin) == HIGH)) {
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
         esp_now_msg_recived = false;
         turntable_moving = true;
         strcpy(myMessageToBeSent.text, "move_jar");
         espnow_send_data();
+        //Wird nicht implementiert für den OLED Display
+        /*#if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+          u8g2.clearBuffer();
+          u8g2.setFont(u8g2_font_courB08_tf);
+          x_pos = CenterPosX(MOVE_JAR[lingo], 6, 128);
+          u8g2.setCursor(x_pos,25);
+          u8g2.print(MOVE_JAR[lingo]);
+          u8g2.sendBuffer();
+        #endif*/
+        #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+          gfx->fillRect(70, 23, 250, 80, BACKGROUND);
+          gfx->setFont(Punk_Mono_Bold_240_150);
+          gfx->setCursor(80, 70);
+          gfx->print(MOVE_JAR[lingo]);
+        #endif
       }
-      else if (drop_prodection == 1 and turntable_moving == 1 and esp_now_msg_recived == true) {
+      else if (drip_prodection == 1 and turntable_moving == 1 and esp_now_msg_recived == true and digitalRead(switch_betrieb_pin) == HIGH) {
         esp_now_msg_recived = false;
         if (strcmp(myReceivedMessage.text, "ok_move_jar") == 0) {
           turntable_moving = false;
@@ -5717,20 +6074,6 @@ void processAutomatik(void) {
         }
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
       }
-      /*Serial.println("-----------------");
-      Serial.print("auto_aktiv:              "); Serial.println(auto_aktiv);
-      Serial.print("tare:                    "); Serial.println(tare);
-      Serial.print("modus:                   "); Serial.println(modus);
-      Serial.print("gewicht:                 "); Serial.println(gewicht);
-      Serial.print("turntable_ok:            "); Serial.println(turntable_ok);
-      Serial.print("drop_prodection:         "); Serial.println(drop_prodection);
-      Serial.print("turntable_moving:        "); Serial.println(turntable_moving);
-      Serial.print("zielgewicht:             "); Serial.println(zielgewicht);
-      Serial.print("servo_aktiv:             "); Serial.println(servo_aktiv);
-      Serial.print("voll:                    "); Serial.println(voll);
-      Serial.print("sammler_num:             "); Serial.println(sammler_num);
-      Serial.print("esp_now_msg_recived:     "); Serial.println(esp_now_msg_recived);
-      Serial.print("turntable_jar_full_flag: "); Serial.println(turntable_jar_full_flag);*/
     }
   #endif
   //end Turntable
@@ -5743,7 +6086,7 @@ void processAutomatik(void) {
         offset_winkel = offset_winkel + 1;
         SERVO_WRITE(winkel_min + offset_winkel);
         current_mA = GetCurrent(10);
-        delay(1000);
+        delay(1000);  //really a delay in the while. next code to fix :-)
       }
       alarm_overcurrent = 0;
     }
@@ -6038,6 +6381,29 @@ void setup() {
     print_credits();   
     delay(2500);
   }
+  // Kanal Nummer suchen wenn OTA und Drehteller gleichzeitig benützt werden können
+  #if (OTA == 1 and DREHTELLER == 1)
+    WiFi.mode(WIFI_STA);
+    #ifdef ESP_NOW_DEBUG
+      Serial.println("Scanne nach WLAN Netzwerken...");
+    #endif
+    int n = WiFi.scanNetworks();
+    #ifdef ESP_NOW_DEBUG
+      Serial.println("Scan abgeschlossen.");
+    #endif
+    for (int i = 0; i < n; i++) {
+      if (WiFi.SSID(i) == ssid) {
+        channel = WiFi.channel(i);
+        #ifdef ESP_NOW_DEBUG
+          Serial.print("SSID: ");
+          Serial.print(WiFi.SSID(i));
+          Serial.print(" Kanal: ");
+          Serial.println(channel);
+        #endif
+        break; // Beende die Schleife, wenn das Netzwerk gefunden wurde
+      }
+    }
+  #endif
   // Setup der Waage, Skalierungsfaktor setzen
   int x_pos;
   if (waage_vorhanden ==1) {                         // Waage angeschlossen?
@@ -6183,6 +6549,7 @@ void setup() {
   //Drehteller
   #if DREHTELLER == 1
     WiFi.mode(WIFI_STA);
+    esp_wifi_set_channel(channel, WIFI_SECOND_CHAN_NONE);
     #if CHANGE_MAC_ADDRESS_HM == 1
       uint8_t newMACAddress[] = {0x74, 0x00, 0x00, 0x00, 0x00, 0x01};
       esp_err_t err = esp_wifi_set_mac(WIFI_IF_STA, &newMACAddress[0]);
@@ -6206,7 +6573,7 @@ void setup() {
     esp_now_register_send_cb(messageSent);  
     esp_now_register_recv_cb(messageReceived); 
     memcpy(peerInfo.peer_addr, MacAdressTurntable, 6);
-    peerInfo.channel = 0;
+    peerInfo.channel = channel;
     peerInfo.encrypt = false;
     if (esp_now_add_peer(&peerInfo) != ESP_OK) {
       esp_now_ini =false;
@@ -6217,7 +6584,7 @@ void setup() {
     if (use_turntable == 1) {
       unsigned long turntable_millis = millis();
       esp_now_msg_recived = false;
-      strcpy(myMessageToBeSent.text, "close_drop_prodection");
+      strcpy(myMessageToBeSent.text, "close_drop_prodection");  //braucht keine Wartezeit
       espnow_send_data();
       while (millis() - turntable_millis < 1000 and esp_now_msg_recived == false) {  //brechce ab wenn in 10 sek keine Rückmeldung kommt
         delay(10);
@@ -6725,6 +7092,7 @@ void espnow_send_data() {
       gfx->drawLine(0, 37, 320, 37, TEXT);
     #endif
     WiFi.mode(WIFI_STA);
+    WiFi.setSleep(false);
     WiFi.begin(ssid, password);
     // Wait for connection
     char x[] = "";
