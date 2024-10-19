@@ -35,6 +35,7 @@ char CORRECTION[]           = "Korrektur";
 char AUTOCORRECTION[]       = "Autokorrektur";
 char KINDNESS[]             = "-> Kulanz";
 char FLOW_G_OVER_TIME[]     = "Fluss g/Zeit";
+char WAIT_BEFOR_FILL[]		= "Warte vor füllen";
 
 //Setup Servo
 char LIVESETUP[]            = "Livesetup";
@@ -125,6 +126,8 @@ char ACT[]                  = "Ist";
 char PLEASE_PUT[]           = "Bitte Glas";
 char UP_THE_JAR[]           = "aufstellen";
 char TARE_JAR[]             = "Tara Glas";
+char CONTINUE_WITH[]        = "Weiter mit";
+char THE_START_BUTTON[]     = "der Start Taste";
 char FLOW[]                 = "Fluss";
 char AS[]                   = "AS";
 char A_LOWER_CASE[]         = "a";

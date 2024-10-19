@@ -37,6 +37,7 @@ char CORRECTION[]			= "Correction";
 char AUTOCORRECTION[]		= "Autocorrection";
 char KINDNESS[]				= "-> Kindness";
 char FLOW_G_OVER_TIME[]		= "Flow g/time";
+char WAIT_BEFOR_FILL[]		= "Wait befor fill";
 
 //Setup Servo
 char LIVESETUP[]			= "Livesetup";
@@ -117,14 +118,14 @@ char THE_SCALE[]			= "the scale!";					//		    the scale!
 char MANUAL[]				= "Manual";
 char SERVO[]				= "Servo";
 char TARE[]				    = "Tare";
-char INA[]				    = "INA";
+char INA[]				    = "INA";                        //do not translate
 char CURR[]				    = "Curr.";                      //Current
 char MAX_1[]				= "max";
-char ACTUAL[]				= "actual";
+char ACTUAL[]				= "Actual";
 char A_UPPER_CASE[]			= "A";							//[Angle - only OLED display]
 
 //Automatic Modus
-char INA219[]				= "INA219";
+char INA219[]				= "INA219";                     //do not translate
 char AUTOCORR[]				= "Autocorr.";					//[no space for Autocorrection]
 char MIN[]				    = "Min";						//[max 3 letters]
 char MAX_2[]				= "Max";						//[max 3 letters]
@@ -133,11 +134,15 @@ char ACT[]				    = "Act";						//[max 3 letters - no space for Actual]
 char PLEASE_PUT[]			= "Please put";					//DISPLAY:	Please put
 char UP_THE_JAR[]			= "up the jar";					//	    	up the jar
 char TARE_JAR[]				= "Tare jar";
+//Continue with the start button
+char CONTINUE_WITH[]        = "Continue with";              //DISPLAY:  Continue with
+char THE_START_BUTTON[]     = "the start button";           //          the start button
 char FLOW[]				    = "Flow:";
 char AS[]				    = "AS";							//[Autostart - only OLED Display]
 char A_LOWER_CASE[]			= "a";							//[angle or auto - only OLED Display]
 char C_LOWER_CASE[]			= "c";							//[correction - only OLED Display]
 char F_LOWER_CASE[]			= "f";							//[flow - only OLED Display]
+
 
 char NO_TARE[]				= "no tare!";
 
