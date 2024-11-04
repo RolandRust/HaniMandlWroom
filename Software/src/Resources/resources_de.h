@@ -66,7 +66,7 @@ char CALIBRATION_DONE[]     = "Kalibration beendet";
 //Setup Clear Preferenzes
 char CLEAR_PREFERENCES[]    = "Lösche Preferences";
 char CLEAR_NVS_MEMORY[]     = "Lösche NVS Speicher";
-char RESET_USE_TURNTABLE[]	= "Reset use Drehteller";
+char RESET_TURNTABLE[]	    = "Reset Drehteller";
 
 //Setup Turntable
 char TURNTABLE[]            = "Drehteller";
@@ -98,6 +98,14 @@ char PROTECTION_WAIT_DP[]   = "zum Schliessen";
 char TIME_READING_DP[]      = "des Tropfschutzes";
 char FAILED_DP[]            = "fehlgeschlagen";
 char ENABLE_OTA_UPDATE[]    = "OTA-Update aktivieren";
+
+//Setup About
+char ABOUT[]                = "Über";
+char VERSION[]              = "Version";
+char MAC[]                  = "MAC";
+char WLAN_CHANNEL[]         = "WLAN Kanal";
+char USE_TURNTABLE[]        = "Benütze Drehteller";
+char OTA_UPDATE[]           = "OTA Update";
 
 //Warnings
 char NO[]                   = "Keine";

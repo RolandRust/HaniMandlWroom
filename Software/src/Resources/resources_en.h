@@ -68,7 +68,7 @@ char CALIBRATION_DONE[]		= "Calibration done";
 //Setup Clear Preferenzes
 char CLEAR_PREFERENCES[]	= "Clear Preferences";
 char CLEAR_NVS_MEMORY[]		= "Clear NVS memory";
-char RESET_USE_TURNTABLE[]	= "Reset use turntable";
+char RESET_TURNTABLE[]	    = "Reset turntable";
 
 //Setup Turntable
 char TURNTABLE[]            = "Turntable";
@@ -102,6 +102,14 @@ char PROTECTION_WAIT_DP[]   = "protection wait";            //         protectio
 char TIME_READING_DP[]      = "time reading";               //         time reading
 char FAILED_DP[]            = "failed";                     //         failed
 char ENABLE_OTA_UPDATE[]    = "Enable OTA Update";
+
+//Setup About
+char ABOUT[]                = "About";
+char VERSION[]              = "Version";
+char MAC[]                  = "MAC";                        //MAC adress
+char WLAN_CHANNEL[]         = "WLAN channel";
+char USE_TURNTABLE[]        = "Use Turntable";
+char OTA_UPDATE[]           = "OTA update";
 
 //Warnings
 //no scale!
