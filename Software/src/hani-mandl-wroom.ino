@@ -108,7 +108,8 @@
                                - Automatischer Volumenstrom alle 3 Durchgänge
   2024-04 Roland Rust        | W.0.3      
                                - Drehteller integration
-                               - Funktion implementiert bei welcher man nach dem Tara das Glas wegnehmen kann und wider Draufstellen mit eider Honigwabe oder sinstigem drin.         
+                               - Funktion implementiert bei welcher man nach dem Tara das Glas wegnehmen kann und wider Draufstellen mit eider Honigwabe oder sonstigem drin.
+                               - HW Level 2 und 3 hinzugefügt. Heltec Wifi Kit V3 (geht nur mit OLED Display)        
 
   This code is in the public domain.
   
@@ -143,17 +144,19 @@ String version = "W.0.3";
 // Hier den Code auf die verwendete Hardware einstellen
 //
 #define HARDWARE_LEVEL 1          // 1 = ESP32-WROOM 38Pin Connector
+                                  // 2 = Heltec WiFi Kit V3 use on board display (nur in Verbindung mit DISPLAY_TYP 1)
+                                  // 3 = Heltec WiFi Kit V3 use extern display   (nur in Verbindung mit DISPLAY_TYP 1)
 #define SCALE_TYP 2               // 1 = 2kg Wägezelle
                                   // 2 = 5kg Wägezelle
 #define SERVO_ERWEITERT           // definieren, falls die Hardware mit dem alten Programmcode mit Poti aufgebaut wurde oder der Servo zu wenig fährt
                                   // Sonst bleibt der Servo in Stop-Position einige Grad offen! Nach dem Update erst prüfen!
 #define ROTARY_SCALE 1            // in welchen Schritten springt unser Rotary Encoder. 
                                   // Beispiele: KY-040 = 2, HW-040 = 1, für Poti-Betrieb auf 1 setzen
-#define DISPLAY_TYPE 3            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
-                                  // 2 = 128x64 pixel OLED Display angeschlossen über SPI
-                                  // 3 = 320x240 pixel TFT Display ST7789 angeschlossen über SPI
+#define DISPLAY_TYPE 1            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
+                                  // 2 = 128x64 pixel OLED Display angeschlossen über SPI (nicht für das Heltec Module)
+                                  // 3 = 320x240 pixel TFT Display ST7789 angeschlossen über SPI (nicht für das Heltec Module)
                                   // 99 = Oled über I2C und TFT über SPI für development
-#define OTA 0                     // 0 = OTA Uptade ausgeschalten
+#define OTA 1                     // 0 = OTA Uptade ausgeschalten
                                   // 1 = OTA Update eingeschalten
 #define DREHTELLER 0              // 0 = kein Drehteller
                                   // 1 = Drehteller vorhanden
@@ -176,7 +179,9 @@ String version = "W.0.3";
                                 // mit 5 zusätzlich rotary debug-Infos
                                 // ACHTUNG: zu viel Serieller Output kann einen ISR-Watchdog Reset auslösen!
 //#define ESP_NOW_DEBUG
-//#define TURNTABLE_DEBUG
+#if HARDWARE_LEVEL == 2
+  TwoWire I2C_2 = TwoWire(1);
+#endif
 
 #if SCALE_TYP == 1
   #define MAXIMALGEWICHT 1500     // Maximales Gewicht für 2kg Wägezelle
@@ -217,7 +222,13 @@ Adafruit_INA219 ina219;
 
 // Display
 #if DISPLAY_TYPE == 1
-  U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* clock=*/ 22, /* data=*/ 21, /* reset=*/ U8X8_PIN_NONE);
+  #if HARDWARE_LEVEL == 1
+    U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* clock=*/ 22, /* data=*/ 21, /* reset=*/ U8X8_PIN_NONE);
+  #elif HARDWARE_LEVEL == 2
+    U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 21, /* clock=*/ 18, /* data=*/ 17);
+  #elif HARDWARE_LEVEL == 3
+    U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 21, /* clock=*/ 19, /* data=*/ 20);
+  #endif
 #elif DISPLAY_TYPE == 2
   U8G2_SSD1309_128X64_NONAME0_F_4W_SW_SPI u8g2(U8G2_R0, /* clock=*/ 18, /* data=*/ 23, /* cs=*/ 5, /* dc=*/ 13, /* reset=*/ 14);
 #elif DISPLAY_TYPE == 3
@@ -308,6 +319,29 @@ Adafruit_INA219 ina219;
   // Buzzer and LED
   static int buzzer_pin = 25;
   int led_pin = 0;
+#elif HARDWARE_LEVEL == 2 or HARDWARE_LEVEL == 3
+  // Rotary Encoder
+  const int outputA  = 47;  // Clk
+  const int outputB  = 48;  // DT 
+  const int outputSW = 26;
+  // Servo
+  const int servo_pin = 1;
+  // 3x Schalter Ein 1 - Aus - Ein 2
+  const int switch_betrieb_pin = 40;
+  const int switch_vcc_pin     = 41;     // <- Vcc
+  const int switch_setup_pin   = 42;
+  const int vext_ctrl_pin      = 36;     // Vext control pin
+  // Taster 
+  const int button_start_vcc_pin =  7;  // <- Vcc
+  const int button_start_pin     =  6;
+  const int button_stop_vcc_pin  =  5;  // <- Vcc
+  const int button_stop_pin      =  4;
+  // Wägezelle-IC
+  const int hx711_sck_pin = 38;
+  const int hx711_dt_pin  = 39;
+  // Buzzer - aktiver Piezo
+  static int buzzer_pin = 2;
+  int led_pin = 35;
 #else
   #error Hardware Level nicht definiert! Korrektes #define setzen!
 #endif
@@ -674,7 +708,6 @@ void getPreferences(void) {
   preferences.begin("EEPROM", false);                     // Parameter aus dem EEPROM lesen
   faktor          = preferences.getFloat("faktor", 0.0);  // falls das nicht gesetzt ist -> Waage ist nicht kalibriert
   pos             = preferences.getUInt("pos", 0);
-  Serial.println(pos);
   gewicht_leer    = preferences.getUInt("gewicht_leer", 0); 
   korrektur       = preferences.getUInt("korrektur", 0);
   autostart       = preferences.getUInt("autostart", 0);
@@ -2314,7 +2347,7 @@ void setupParameter(void) {
     bool change_marker = true;
     menuitem_used = 6;
     int MenuepunkteAnzahl = 7;
-    const char *menuepunkte[MenuepunkteAnzahl] = {BUZZER[lingo], LED[lingo], SHOW_LOGO[lingo], SHOW_CREDITS[lingo], COLORSCHEME[lingo], MARKER_COLOR[lingo], SAVE[lingo]};
+    const char *menuepunkte[MenuepunkteAnzahl] = {BUZZER[lingo], LED_1[lingo], SHOW_LOGO[lingo], SHOW_CREDITS[lingo], COLORSCHEME[lingo], MARKER_COLOR[lingo], SAVE[lingo]};
   #endif
   initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
   i = 1;
@@ -2367,7 +2400,7 @@ void setupParameter(void) {
       sprintf(ausgabe,"%5s", (buzzermode==0?OFF[lingo]:ON[lingo]));
       u8g2.print(ausgabe);
       u8g2.setCursor(10, 2 * y_offset);
-      u8g2.print(LED[lingo]);
+      u8g2.print(LED_1[lingo]);
       u8g2.setCursor(95, 2 * y_offset);
       sprintf(ausgabe,"%5s", (ledmode==0?OFF[lingo]:ON[lingo]));
       u8g2.print(ausgabe);
@@ -5548,7 +5581,6 @@ void processAutomatik(void) {
         if (drip_prodection == false) {
           stop_button_close_dp = true;
         }
-        //gaga
         #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
           //TFT Display update erzwingen
           jar_on_scale = false;
@@ -6582,24 +6614,68 @@ void setup() {
   pinMode(button_stop_pin, INPUT_PULLDOWN);
   pinMode(switch_betrieb_pin, INPUT_PULLDOWN);
   pinMode(switch_setup_pin, INPUT_PULLDOWN);
+  // additional pin setup for hardwarelevel 2
+  #if HARDWARE_LEVEL == 2 or HARDWARE_LEVEL == 3
+    pinMode (switch_vcc_pin, OUTPUT);
+    pinMode (button_start_vcc_pin, OUTPUT);
+    pinMode (button_stop_vcc_pin, OUTPUT);
+    digitalWrite (switch_vcc_pin, HIGH); 
+    digitalWrite (button_start_vcc_pin, HIGH); 
+    digitalWrite (button_stop_vcc_pin, HIGH);
+  #endif
   Serial.begin(115200);
   while (!Serial) {}
   #ifdef isDebug
     Serial.println("Hanimandl Start");
   #endif
+  //OLED Display initialisieren
+  #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+    u8g2.setBusClock(800000);   // experimental
+    u8g2.begin();
+    u8g2.enableUTF8Print();
+  #endif
+
+  //Da noch was displayiges für den Drehteller, wenn er am WLAN Netzwerke suchen ist, damit man Sieht das er was macht
+  /*#if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_courB14_tf);
+    sprintf(ausgabe,EMPTY[lingo]);
+    int x_pos1 = CenterPosX(ausgabe, 11, 128);
+    u8g2.setCursor( x_pos1, 28); u8g2.print(ausgabe);
+    sprintf(ausgabe,THE_SCALE[lingo]);
+    x_pos1 = CenterPosX(ausgabe, 11, 128);
+    u8g2.setCursor(x_pos1, 52); u8g2.print(ausgabe);
+    u8g2.sendBuffer();
+  #endif*/
+
   // Try to initialize the INA219
-  if (ina219.begin()) {
-    ina219_installed = 1;
-    #ifdef isDebug
-      Serial.println("INA219 chip gefunden");
-    #endif
-  }
+  #if HARDWARE_LEVEL == 2
+    I2C_2.begin(20, 19);    //SDA (20), SDL (19)
+  #endif
+  #if HARDWARE_LEVEL == 2
+    if (ina219.begin(&I2C_2)) { 
+      ina219_installed = 1;
+      #ifdef isDebug
+        Serial.println("INA219 chip gefunden");
+      #endif
+    }
+  #else
+    if (ina219.begin()) { 
+      ina219_installed = 1;
+      #ifdef isDebug
+        Serial.println("INA219 chip gefunden");
+      #endif
+    }
+  #endif
   else {
     current_servo = 0;                              // ignore INA wenn keiner gefunden wird
     #ifdef isDebug
       Serial.println("INA219 chip nicht gefunden");
     #endif
   }
+
+
+
   // Rotary
   pinMode(outputSW, INPUT_PULLUP);
   attachInterrupt(outputSW, isr1, FALLING);
@@ -6633,11 +6709,6 @@ void setup() {
     }
   }
   // Boot Screen
-  #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
-    u8g2.setBusClock(800000);   // experimental
-    u8g2.begin();
-    u8g2.enableUTF8Print();
-  #endif
   #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
     tft_colors();
     tft_marker();
@@ -6686,7 +6757,6 @@ void setup() {
     if (faktor == 0) {                               // Vorhanden aber nicht kalibriert
       #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
         u8g2.clearBuffer();
-        //u8g2.setFont(u8g2_font_courB18_tf);
         u8g2.setFont(u8g2_font_courB12_tf);
         sprintf(ausgabe,NOT[lingo]);
         x_pos = CenterPosX(ausgabe, 10, 128);
@@ -6949,16 +7019,16 @@ void print_credits() {
 }
 
 #if USER == 2
-  void print_logo() {
-    #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
-      u8g2.clearBuffer();
-      u8g2.drawXBM(0,0,128,64,LogoGeroldOLED);
-      u8g2.sendBuffer();
-    #endif
-    #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-    gfx->drawXBitmap(0, 0, LogoGeroldTFT, 320, 240, TEXT);
+void print_logo() {
+  #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
+    u8g2.clearBuffer();
+    u8g2.drawXBM(0,0,128,64,LogoGeroldOLED);
+    u8g2.sendBuffer();
   #endif
-  }
+  #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
+    gfx->drawXBitmap(0, 0, LogoGeroldTFT, 320, 240, TEXT);
+ #endif
+}
 #elif USER == 3
 void print_logo() {
   #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
@@ -6990,7 +7060,6 @@ void print_logo() {
     u8g2.setFont(u8g2_font_courB08_tf);
     u8g2.setCursor(77, 64);    u8g2.print(version);
     u8g2.sendBuffer();
-    //u8g2.writeBufferXBM(Serial);	
   #endif
   #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
     gfx->fillScreen(BACKGROUND);
