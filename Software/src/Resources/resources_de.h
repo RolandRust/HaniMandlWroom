@@ -45,7 +45,7 @@ char MAXIMUM[]              = "Maximum";
 
 //Setup Parameter
 char BUZZER[]               = "Summer";
-char LED[]                  = "LED";
+char LED_1[]                = "LED";
 char SHOW_LOGO[]            = "Zeige Logo";
 char SHOW_CREDITS[]         = "Zeige Credits";
 char COLORSCHEME[]          = "Farbschema";

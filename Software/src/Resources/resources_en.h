@@ -47,7 +47,7 @@ char MAXIMUM[]				= "Maximum";
 
 //Setup Parameter
 char BUZZER[]				= "Buzzer";
-char LED[]				    = "LED";
+char LED_1[]				= "LED";                            //Variable LED is used in the Library from the Heltec Module :-(
 char SHOW_LOGO[]			= "Show logo";
 char SHOW_CREDITS[]			= "Show credits";
 char COLORSCHEME[]			= "Colorscheme";
