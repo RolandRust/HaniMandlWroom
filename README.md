@@ -6,13 +6,49 @@ HaniMandel für das Node MCU ESP32 38Pin Evaluation Board<br>
 Dies ist eine abgeänderte Version von dem Orginal HaniMandl Projekt. Die Idee und Veröffentlichung wurde auf der Facebook-Gruppe ["Imkerei und Technik. Eigenbau"](https://www.facebook.com/groups/139671009967454) veröffentlicht.
 Als Grundlage für dieses Projekt bediente ich mich am [develop Branch (V0.2.13)](https://github.com/ClemensGruber/hani-mandl/tree/develop) von Clemens Gruber.
 
-## Menüsprache
+## Einstellungen
 ```
-#define LANGUAGE 1                // 1 = Deutsch
-                                  // 2 = Englisch
+//
+// Usereinstellung
+//
+// Könnt ihr auf eins lassen. User 2 und User 3 haben andere Glaseinstellungen
+//
+#define USER 1                    // 1 = Hanimandl Standart (ist die Default Einstellung so wie Ihr es gewohnt seit)
+                                  // 2 = Gerold (Wird bei euch nicht funktionieren, da die Logos fehlen im ResPos)
+                                  // 3 = Roli
+
+//
+// Hier den Code auf die verwendete Hardware einstellen
+//
+#define HARDWARE_LEVEL 1          // 1 = ESP32-WROOM 38Pin Connector
+                                  // 2 = Heltec WiFi Kit V3 use on board display (nur in Verbindung mit DISPLAY_TYP 1)
+                                  // 3 = Heltec WiFi Kit V3 use extern display   (nur in Verbindung mit DISPLAY_TYP 1)
+#define SCALE_TYP 2               // 1 = 2kg Wägezelle
+                                  // 2 = 5kg Wägezelle
+#define SERVO_ERWEITERT           // definieren, falls die Hardware mit dem alten Programmcode mit Poti aufgebaut wurde oder der Servo zu wenig fährt
+                                  // Sonst bleibt der Servo in Stop-Position einige Grad offen! Nach dem Update erst prüfen!
+#define ROTARY_SCALE 1            // in welchen Schritten springt unser Rotary Encoder. 
+                                  // Beispiele: KY-040 = 2, HW-040 = 1, für Poti-Betrieb auf 1 setzen
+#define DISPLAY_TYPE 3            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
+                                  // 2 = 128x64 pixel OLED Display angeschlossen über SPI (nicht für das Heltec Module)
+                                  // 3 = 320x240 pixel TFT Display ST7789 angeschlossen über SPI (nicht für das Heltec Module)
+                                  // 99 = Oled über I2C und TFT über SPI für development
+#define OTA 1                     // 0 = OTA Uptade ausgeschalten
+                                  // 1 = OTA Update eingeschalten
+#define DREHTELLER 0              // 0 = kein Drehteller
+                                  // 1 = Drehteller vorhanden
+#define CHANGE_MAC_ADDRESS_HM 1   // 0 = behalte die Orginale Mac Adresse
+                                  // 1 = Wechsle die Mac Adresse auf {0x74, 0x00, 0x00, 0x00, 0x00, 0x01}
+#define CHANGE_MAC_ADDRESS_TT 1   // 0 = Mac Adresse vom Drehteller ist die orginale
+                                  // 1 = Mac Adresse vom Drehteller wurde gewechselt auf {0x74, 0x00, 0x00, 0x00, 0x00, 0x02}
+//#define FEHLERKORREKTUR_WAAGE   // falls Gewichtssprünge auftreten, können diese hier abgefangen werden
+                                  // Achtung, kann den Wägeprozess verlangsamen. Vorher Hardware prüfen.
+//#define QUETSCHHAHN_LINKS       // Servo invertieren, falls der Quetschhahn von links geöffnet wird. Mindestens ein Exemplar bekannt
+
+//
+// Ende Benutzereinstellungen!
+// 
 ```
-Die Sprachdateien sind zu finden unter: ./src/Resources
-es können problemlos noch weitere Sprachen implementiert werden
 
 ## OTA Update
 Neu kann man auch über WLAN eine neue Firmware aufspielen.
@@ -39,6 +75,12 @@ W.0.2
 - Automatischer Volumenstrom beim Abfüllen implementiert (Nicht von mir getestet)
 - Der HM kann nun auch über eine Sprachdatei die Menüsprache ändern (implementiert wurde bis jetzt Deutsch und Englisch)
 
+W.0.3
+- Die Sprache kann nun im Setup Menü ausgewählt werden (momentan Deutsch und Englisch. Ihr dürft gerne neue Sprachdateien machen und mir zukommen lassen)
+- Funktion implementiert bei welcher man nach dem Tara das Glas wegnehmen kann und wider draufstellen mit eider Honigwabe oder sonstigem drin. (kann im Automatik Menü eingestellt werden)
+- Hardware Level 2 und 3 hinzugefügt. Heltec Wifi Kit V3 (geht nur mit OLED Display)
+- Drehteller Integriert
+
 ## Copyright
 
 Die Software unterliegt dem gleichen Coryright und Anforderungen wie das Hauptprojekt.
@@ -48,8 +90,3 @@ Die Hardware (Gehäuse und PCB) sind von mir gemacht worden. Ich verzichte auf e
 
 Gehäuse: Ondsel/FreeCAD (keine Lizenz notwendig)<br>
 PCB: DipTrace (kommerzielle Lizenz)
-
-## Appell an dich
-
-Bitte respektiert unsere Arbeit als Maker. Wir investieren etliche Wochen und Monate in ein Projekt und geben dies dann Gratis euch zur Verfügung. Wir schlagen keinen Profit daraus und machen dies nur zum Spass und hoffen das es euch auch Spass macht. Ich habe kein Problem damit, wenn jemand 10 Stück baut und diese zum Selbstkostenpreis (ein Bier obendrauf liegt auch noch drin) den Imkerfreunden weitergibt. Aber schlägt kein Gewinn daraus.
-Und denkt dran: Ja es macht mir Spass ein Projekt wie dieses weiterzuentwickeln. Ich habe aber auch den gleichen Spass wenn ich es danach nicht veröffentliche.
