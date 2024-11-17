@@ -1,6 +1,9 @@
 # HaniMandlWroom
 HaniMandel für das Node MCU ESP32 38Pin Evaluation Board<br>
 
+## W.0.3 ist noch im Dev Branch. Bekommt ein Release, sobalt ich den Drehteller Live getestet habe.
+## Kompiliert nur mit Visual Studio Code. Mit der Arduino IDE gibts Probleme!
+
 ![HaniMandl_1](./Hardware/Gehäuse/Bilder/HaniMandl_1.jpg)
 
 Dies ist eine abgeänderte Version von dem Orginal HaniMandl Projekt. Die Idee und Veröffentlichung wurde auf der Facebook-Gruppe ["Imkerei und Technik. Eigenbau"](https://www.facebook.com/groups/139671009967454) veröffentlicht.
@@ -90,3 +93,11 @@ Die Hardware (Gehäuse und PCB) sind von mir gemacht worden. Ich verzichte auf e
 
 Gehäuse: Ondsel/FreeCAD (keine Lizenz notwendig)<br>
 PCB: DipTrace (kommerzielle Lizenz)
+
+## Drehteller addon für den HaniMandel (HonigSchleppElesl)
+
+zu finden unter: https://github.com/RolandRust/HonigSchleppElesl/
+
+## Appell an dich
+
+Bringt nix :-)
