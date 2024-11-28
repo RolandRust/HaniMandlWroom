@@ -1,7 +1,6 @@
 # HaniMandlWroom
 HaniMandel für das Node MCU ESP32 38Pin Evaluation Board<br>
 
-## W.0.3 ist noch im Dev Branch. Bekommt ein Release, sobald ich den Drehteller Live getestet habe.
 ## Kompiliert nur mit Visual Studio Code. Mit der Arduino IDE gibts Probleme!
 
 ![HaniMandl_1](./Hardware/Gehäuse/Bilder/HaniMandl_1.jpg)
