@@ -152,11 +152,11 @@ String version = "W.0.3";
                                   // Sonst bleibt der Servo in Stop-Position einige Grad offen! Nach dem Update erst prüfen!
 #define ROTARY_SCALE 1            // in welchen Schritten springt unser Rotary Encoder. 
                                   // Beispiele: KY-040 = 2, HW-040 = 1, für Poti-Betrieb auf 1 setzen
-#define DISPLAY_TYPE 1            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
+#define DISPLAY_TYPE 3            // 1 = 128x64 pixel OLED Display angeschlossen über I2C
                                   // 2 = 128x64 pixel OLED Display angeschlossen über SPI (nicht für das Heltec Module)
                                   // 3 = 320x240 pixel TFT Display ST7789 angeschlossen über SPI (nicht für das Heltec Module)
                                   // 99 = Oled über I2C und TFT über SPI für development
-#define OTA 1                     // 0 = OTA Uptade ausgeschalten
+#define OTA 0                     // 0 = OTA Uptade ausgeschalten
                                   // 1 = OTA Update eingeschalten
 #define DREHTELLER 0              // 0 = kein Drehteller
                                   // 1 = Drehteller vorhanden
@@ -174,7 +174,7 @@ String version = "W.0.3";
 //
 // Ab hier nur verstellen wenn Du genau weisst, was Du tust!
 //
-//#define isDebug 1             // serielle debug-Ausgabe aktivieren. Mit > 3 wird jeder Messdurchlauf ausgegeben
+//#define isDebug 5             // serielle debug-Ausgabe aktivieren. Mit > 3 wird jeder Messdurchlauf ausgegeben
                                 // mit 4 zusätzlich u.a. Durchlaufzeiten
                                 // mit 5 zusätzlich rotary debug-Infos
                                 // ACHTUNG: zu viel Serieller Output kann einen ISR-Watchdog Reset auslösen!
@@ -485,6 +485,7 @@ int wait_befor_fill = 0;              // Flag wenn im Automatik Modus gewartet w
 int stop_wait_befor_fill = 0;         // Stop Taste wirde gedrückt während im wait_befor_fill Modus
 //Variablen für TFT update
 bool no_ina;
+int scaletime;
 int gewicht_alt;
 int winkel_min_alt;
 int pos_alt;
@@ -3028,7 +3029,7 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
       while (k > 0) {
         SERVO_WRITE(90);
         quetschhan = OPEN[lingo];
-        int scaletime = millis();
+        scaletime = millis();
         bool measurement_run = false;
         while (!cal_done) {
           #if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
