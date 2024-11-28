@@ -1,3 +1,6 @@
+char LANGUAGE1[]            = "Sprache";
+char LANGUAGE2[]            = "Deutsch";
+
 //Process Setup
 char TAREVALUES[]           = "Tarawerte";
 char CALIBRATION[]          = "Kalibrieren";
@@ -32,6 +35,7 @@ char CORRECTION[]           = "Korrektur";
 char AUTOCORRECTION[]       = "Autokorrektur";
 char KINDNESS[]             = "-> Kulanz";
 char FLOW_G_OVER_TIME[]     = "Fluss g/Zeit";
+char WAIT_BEFOR_FILL[]		= "Warte vor füllen";
 
 //Setup Servo
 char LIVESETUP[]            = "Livesetup";
@@ -41,7 +45,7 @@ char MAXIMUM[]              = "Maximum";
 
 //Setup Parameter
 char BUZZER[]               = "Summer";
-char LED[]                  = "LED";
+char LED_1[]                = "LED";
 char SHOW_LOGO[]            = "Zeige Logo";
 char SHOW_CREDITS[]         = "Zeige Credits";
 char COLORSCHEME[]          = "Farbschema";
@@ -62,6 +66,46 @@ char CALIBRATION_DONE[]     = "Kalibration beendet";
 //Setup Clear Preferenzes
 char CLEAR_PREFERENCES[]    = "Lösche Preferences";
 char CLEAR_NVS_MEMORY[]     = "Lösche NVS Speicher";
+char RESET_TURNTABLE[]	    = "Reset Drehteller";
+
+//Setup Turntable
+char TURNTABLE[]            = "Drehteller";
+char INIT_TURNTABLE[]       = "Init Drehteller";
+char SETUP_TURNTABLE[]      = "Setup Drehteller";
+char SETUP_DRIPPRODECTION[] = "Setup Tropfschutz";
+//char ADJUST_JAR_POS[]       = "Glas Pos. anpassen";
+//char STEPS[]                = "Schritte";
+//char POSITION[]             = "Position";
+char MOVE_JAR[]             = "Verschiebe Glas";
+char SPEED_INIT[]           = "Init Geschw.";
+char SPEED_RUN[]            = "Run Geschw.";
+char MOVE_POS[]             = "Verschiebe Pos.";
+char SETUP_STEPPER[]        = "Setup Schrittmotor";
+char SETUP_SERVO[]          = "Setup Servo";
+char OKKAY[]                = "ok";
+char NOKAY[]                = "nok";
+char CENTER_JAR[]           = "Zentriere Glass";
+char OPEN_DRIPPROTECTION[]  = "Öffne Tropfschutz";
+char CLOSE_DRIPPROTECTION[] = "Schliesse Tropfschutz";
+char SPEED_DRIPPROTECTION[] = "Geschwindigkeit";
+char WAIT_TO_CLOSE_DP[]     = "Wartezeit schliessen";
+char DP_MIN_ANGLE[]         = "TS min Winkel";
+char DP_MAX_ANGLE[]         = "TS max Winkel";
+char CONNECTION[]           = "Verbindung";
+char FAILED[]               = "fehlgeschlagen";
+char CLOSE_DRIP_DP[]        = "Lesen Wartezeit";  
+char PROTECTION_WAIT_DP[]   = "zum Schliessen";
+char TIME_READING_DP[]      = "des Tropfschutzes";
+char FAILED_DP[]            = "fehlgeschlagen";
+char ENABLE_OTA_UPDATE[]    = "OTA-Update aktivieren";
+
+//Setup About
+char ABOUT[]                = "Über";
+char VERSION[]              = "Version";
+char MAC[]                  = "MAC";
+char WLAN_CHANNEL[]         = "WLAN Kanal";
+char USE_TURNTABLE[]        = "Benütze Drehteller";
+char OTA_UPDATE[]           = "OTA Update";
 
 //Warnings
 char NO[]                   = "Keine";
@@ -90,6 +134,8 @@ char ACT[]                  = "Ist";
 char PLEASE_PUT[]           = "Bitte Glas";
 char UP_THE_JAR[]           = "aufstellen";
 char TARE_JAR[]             = "Tara Glas";
+char CONTINUE_WITH[]        = "Weiter mit";
+char THE_START_BUTTON[]     = "der Start Taste";
 char FLOW[]                 = "Fluss";
 char AS[]                   = "AS";
 char A_LOWER_CASE[]         = "a";
