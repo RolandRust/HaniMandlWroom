@@ -10,17 +10,16 @@ Dies ist eine Developer Version. Es sind nicht alle funktionen getestet und es w
 Habe ziemlich viel geändert. Ist also warscheidnlich das es noch Bugs drin hat.
 
 ## Changelog
-2024-12 Roland Rust        | W.0.4
-                               - Angefangen mit den Variablen auf Englisch umzustellen (Nicht Hardcore, man wechselt was gerade über den Weg läuft :-))
-                               - Es können bis zu 5 voreingestellte Servo Winkel definiert werden
-                               - Gewicht wo Feindosierung startet kann nun eingestellt werden.
-                               - Angefangen den Code auszulagern
-                               - Umstellung für den TFT von Arduino_GFX_Library auf die TFT_eSPI Library
-                               - Es können versiedene Schriften für den TFT verwendet werden. Ist nicht mehr auf eine Mono Schrift angewiesen
-                               - Progressbar im TFT Display gefixt
-                               - Usersettings sind nun im File setup.ini definiert
-                               - OTA ist nun in einem eigenen Menü
-                               - WebIF hinzugefügt. Wenn keine SSID oder Passwort vorhanden sind, startet der HM im Access Mode
+- Angefangen mit den Variablen auf Englisch umzustellen (Nicht Hardcore, man wechselt was gerade über den Weg läuft :-))
+- Es können bis zu 5 voreingestellte Servo Winkel definiert werden
+- Gewicht wo Feindosierung startet kann nun eingestellt werden.
+- Angefangen den Code auszulagern
+- Umstellung für den TFT von Arduino_GFX_Library auf die TFT_eSPI Library
+- Es können versiedene Schriften für den TFT verwendet werden. Ist nicht mehr auf eine Mono Schrift angewiesen
+- Progressbar im TFT Display gefixt
+- Usersettings sind nun im File setup.ini definiert
+- OTA ist nun in einem eigenen Menü
+- WebIF hinzugefügt. Wenn keine SSID oder Passwort vorhanden sind, startet der HM im Access Mode
 
 ## Bekante Käfer im Code
   - Wenn in den Automatik Modus geschalten wird und auf der Waage was draufsteht, wird das Ausgewählte Glas nicht angezeigt. Ein leeren der Wage behabt das Problem.
