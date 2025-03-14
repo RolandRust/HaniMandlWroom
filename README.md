@@ -6,7 +6,7 @@ HaniMandel für das Node MCU ESP32 38Pin Evaluation Board<br>
 ## Kompiliert nur mit Visual Studio Code. Die Arduino IDE wurde abgeschossen :-)
 
 ## Dev Version 
-Dies ist eine Developer Version. Es sind nicht alle funkrionen getestet und es wurde noch nie Abgefüllt mit dieser Version.
+Dies ist eine Developer Version. Es sind nicht alle funktionen getestet und es wurde noch nie Abgefüllt mit dieser Version.
 Habe ziemlich viel geändert. Ist also warscheidnlich das es noch Bugs drin hat.
 
 ## Changelog
