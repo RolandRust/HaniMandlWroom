@@ -3,7 +3,7 @@ char LANGUAGE2[]            = "Deutsch";
 
 //Process Setup
 char TAREVALUES[]           = "Tarawerte";
-char CALIBRATION[]          = "Kalibrieren";
+char SCALE[]                = "Waage";
 char FILL_QUANTITY[]        = "Füllmenge";
 char AUTOMATIC[]            = "Automatik";
 char SERVOSETTINGS[]        = "Servoeinst.";
@@ -14,10 +14,16 @@ char CLEAR_PREFS[]          = "Clear Prefs";
 char INA219_SETUP[]         = "INA219 Setup";
 char SETUP[]                = "Setup";
 
+// Setup Scale
+char CALIBRATION[]          = "Kalibrieren";
+char MAX_WEIGHT[]           = "max. Gewicht "
+char CALIBRATION_WEIGHT[]   = "Kal. Gewicht";        //new
+
 // Setup setup
 char WIFI[]                 = "WiFi";
 char WIFI_SETUP[]           = "WiFi Setup";
-char START_OTA[]            = "Start OTA Update";
+char OTA_OFFLINE[]          = "OTA update offline";
+char OTA_ONLINE[]           = "OTA update online";
 char START_WIFI[]           = "Start WiFi"
 char STOP_WIFI[]            = "Stop WiFi"
 char START_AP[]             = "Start AP"
@@ -40,6 +46,9 @@ char WITH_OK_2[]            = "OK bestätigen";
 //Setup quantity jars
 char FILL_QUANTITY_JARS[]   = "Füllmenge Gläser";
 
+//Rotary
+char SELECT_ROTARY[]        = "Wähle Rotary"
+
 //Setup Automatik
 char AUTOSTART[]            = "Autostart";
 char JAR_TOLERANCE[]        = "Glastoleranz";
@@ -56,6 +65,8 @@ char FINEDOSAGE[]           = "Feindosierung";
 char MAXIMUM[]              = "Maximum";
 char FULL_MODE[]            = "Füll Modus";
 char FINEDOSAGE_WEIGHT[]    = "Feindos. Gewicht";
+char SQUEE_TAP_LEFT[]       = "Quetschhan links";
+char SERVO_EXPANDED[]       = "Servo erweitert"
 
 //Setup Parameter
 char BUZZER[]               = "Summer";
@@ -125,7 +136,7 @@ char OTA_UPDATE[]           = "OTA Update";
 
 //Warnings
 char NO[]                   = "Keine";
-char SCALE[]                = "Waage!";
+char SCALE_1[]              = "Waage!";
 char NOT[]                  = "Nicht";
 char CALIBRATED[]           = "kalibriert";
 char EMPTY[]                = "Waage";
@@ -184,3 +195,19 @@ char CONNECT[]              = "Verbinden";
 char MORE_SETTINGS          = "Weitere Einstellungen";
 //char SAVE[]                 = "Speichern";
 char EXIT[]                 = "Beenden";
+
+//Online OTA Update
+char START_UPDATE[]         = "Start Update";
+char FIRMWARE_IS[]          = "Firmware ist";
+char UP_TO_DATE[]           = "aktuell";
+char NO_UPDATE[]            = "kein Update";
+char REQUIRED[]             = "erforderlich";
+char ERROR[]                = "Fehler";
+char SUCCESSFULLY[]         = "Erfolgreich";
+char NO_BIN_FILE[]          = "Kein *.bin File"
+char AVARILABLE[]           = "vorhanden";
+char OLD_VERSION[]          = "Alte Version";
+char NEW_VERSION[]          = "Neue Version";
+char BUTTONS[]              = "Taster";
+char STOP[]                 = "Stop";
+char UPDATE[]               = "Update";

@@ -4,8 +4,6 @@
 
 #ifndef __HM_VARIABLES__
 #define __HM_VARIABLES__
-    //Version
-    //extern String version;
     //Scale, manual mode, automatic mode
     extern int weight;                                      // current weight
     extern int tare;                                        // tare for chosen jar, for automatic mode
@@ -17,6 +15,9 @@
     extern int mode;                                        // wether to drive the servo to minimum on mode change
     extern int auto_enabled;                                // for automatic mode system on/off?
     extern int scale_present;                               // not talking to HX711 when no scale is connected, otherwise crash
+    //Load Cell
+    extern int max_lc_weight;                               // maximum load cell weight
+    extern int max_lc_cal;                                  // maximul load cell calibration weight
     //Automatic
     extern int correction;                                  // correction value for fill quantity
     extern int autostart;                                   // full automatic on/off
@@ -43,19 +44,14 @@
     extern int fullmode;                                    // Variable for the different preset angles
     extern int servo_enabled;                               // activate servo yes/no
     extern bool servo_live;                                 // activate servo in the servo setup menu
+    extern int squee_tap_left;                              // change the Servo direction if it 1
+    extern int servo_expanded;                              // Define if the hardware has been built up with the old program code with potentiometer or the servo drives too little
     //TFT
     extern int color_scheme;                                // 0 = dark, 1 = lite / Change of color scheme for the TFT display
     extern int color_marker;                                // Color for the marker for the TFT display
-    extern bool change_scheme;                              // Helper for TFT display
-    extern bool change_marker;                              // Helper for TFT display
-    extern int value_old;                                   // Helper for TFT display
-    extern bool change;                                     // Helper for TFT display
     extern bool make_changes;                               // Helper for TFT display
-    extern String text_old;                                 // Helper for TFT display
-    extern bool draw_frame;                                 // Helper for TFT display
-    extern int menuoffset_tft;                              // Helper for TFT display, only used in the automatic menu
+    extern int menuoffset_tft;//prüfen ob es die noch braucht                               // Helper for TFT display, only used in the automatic menu
     extern bool y_pos_weight;                               // Helper for TFT display
-    extern int font_typ;                                    // Font type
     //Language
     extern int lingo;                                       // Variable for the language
     //Buzzer, LED, Logo, Credits
@@ -64,9 +60,15 @@
     extern int showlogo;                                    // 0 = off, 1 = on
     extern int showcredits;                                 // 0 = off, 1 = on
     //Rotary
+    #define SW_WINKEL    0
+    #define SW_KORREKTUR 1
+    #define SW_FLUSS     2
+    #define SW_MENU      3
     extern int pos;                                         // current position of rotary
     extern int pos_old;                                     // Helper for TFT display
     extern int menu_rotation;                               // Changes the rotation from the main sctoll menu
+    extern int rotary_select;                               // Selected rotary function
+    extern int rotary_scale;                                // Selected rotaty: 1 -> HW-040; 2 -> KY-040
     //Calibration scale
     extern int cali_weight;                                 // choosen weight for calibration
     //Turntable
@@ -81,13 +83,31 @@
     extern String esp_now_wait_old;                         // Helper for TFT display
     extern String esp_now_wait;                             // Helper for TFT display
     extern bool esp_now_change;                             // Helper for TFT display
+    extern bool turntable_running;                          // Helper for TFT display
+    extern bool center_jar_running;                         // Helper for TFT display
+    extern int jar_center_pos;                              // Position offset to center the jar on the scale
+    extern int speed_init;                                  // Speed for init the turntable
+    extern int speed_run;                                   // Speed to move the jars
+    extern int speed_init_old;                              // Helper for TFT display
+    extern int speed_run_old;                               // Helper for TFT display
+    extern int ts_speed;                                    // Helper for TFT display
+    extern int ts_waittime;                                 // Helper for TFT display
+    extern int ts_angle_min;                                // Helper for TFT display
+    extern int ts_angle_max;                                // Helper for TFT display
+    extern int ota_status;                                  // Helper for TFT display
+    extern char myReceivedMessage_text[];                   // Helper for TFT display
+    extern int myReceivedMessage_value;                     // Helper for TFT display
     //WiFI
     extern String ssid;                                     //WiFi SSID
     extern String password;                                 //WiFI password
     extern const char* apSSID;                              //Access point SSID
     extern const char* apPassword;                          //Access point Pasword
+    extern uint8_t baseMac[6];                              //Mac adress
+    extern char ip[30];                                     //IP adress
     //OTA
     extern int ota_done;                                    // Variable for OTA update
+    extern int progress;                                    // Progress for online uptade
+    extern char new_version[10];                            // Helper to save the new version string
     //ESPnow
     extern bool esp_now_ini;                                // true if esp now is active
     extern char esp_now_textMsg[];                          // send string for ESP NOW
@@ -113,7 +133,6 @@
     extern int scaletime;
     extern int weight_old;
     extern int angle_min_old;
-    //extern int pos_old;
     extern int angle_ist_old;
     extern int tare_old;
     extern int tare_old_automatic;
@@ -124,6 +143,8 @@
     extern int correction_old;
     extern int autocorrection_gr_old;
     extern int intWeight_old;
+    //Automatic mode
+    extern bool full;                                       // Jar is full --> True
     //Jar struct and arrray
     struct glas{ 
         int Gewicht;
@@ -143,4 +164,5 @@
         extern const char *GlasTypArray[3];
         extern const char *GlasTypArrayTFT[3];
     #endif
+    int getRotariesValue(int rotary_mode);
 #endif

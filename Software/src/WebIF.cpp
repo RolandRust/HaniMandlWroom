@@ -77,12 +77,7 @@ apserver.send(200, "text/html; charset=UTF-8", html);
 void HM_WEBIF::setupAPMode() {
     // STA-Modus aktivieren, um Netzwerke zu scannen
     WiFi.mode(WIFI_AP);
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis_webif.setup_webif_oled(2);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis_webif.setup_webif_tft(2);
-    #endif
+    dis_webif.setup_webif(2);
     #if WIFI_DEBUG >= 1
         Serial.println("Wechsel in den STA-Modus und scanne nach WLAN-Netzwerken...");
     #endif
@@ -104,12 +99,7 @@ void HM_WEBIF::setupAPMode() {
     #endif
     WiFi.mode(WIFI_AP);                                                             // Wechsel in den AP-Modus
     WiFi.softAP(apSSID, apPassword);
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis_webif.setup_webif_oled(6);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis_webif.setup_webif_tft(6);
-    #endif                                                // Access Point starten
+    dis_webif.setup_webif(6);                                                       // Access Point starten
     #if WIFI_DEBUG >= 1
         Serial.println("AP gestartet! IP-Adresse: " + WiFi.softAPIP().toString());
     #endif
@@ -125,19 +115,9 @@ void HM_WEBIF::handleSetWiFi() {
         WiFi.mode(WIFI_STA);
         WiFi.begin(newSSID.c_str(), newPassword.c_str());
         int timeout = 10;
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis_webif.setup_webif_oled(2);
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis_webif.setup_webif_tft(2);
-        #endif
+        dis_webif.setup_webif(2);
         while (WiFi.status() != WL_CONNECTED && timeout-- > 0) {
-            #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-                dis_webif.setup_webif_oled(3);
-            #endif
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-                dis_webif.setup_webif_tft(3);
-            #endif
+            dis_webif.setup_webif(3);
             delay(1000);
             Serial.print(".");
         }
@@ -152,13 +132,8 @@ void HM_WEBIF::handleSetWiFi() {
                 Serial.println("\nVerbunden mit: " + String(WiFi.SSID()));
                 Serial.println("Neue IP-Adresse: " + WiFi.localIP().toString());
             #endif
-            #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-                dis_webif.setup_webif_oled(4);
-            #endif
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-                dis_webif.setup_webif_tft(4);
-            #endif
-        } 
+            dis_webif.setup_webif(4);
+        }
         else {
             #if WIFI_DEBUG >= 1
                 Serial.println("\nVerbindung fehlgeschlagen! Neustart im AP-Modus...");
@@ -191,43 +166,23 @@ void HM_WEBIF::setupWebIF() {
     exit_webib = false;
     WiFi.mode(WIFI_STA);
     // Prüfe, ob eine SSID definiert ist
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis_webif.setup_webif_oled(1);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis_webif.setup_webif_tft(1);
-    #endif
+    dis_webif.setup_webif(1);
     if (ssid != "") {
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis_webif.setup_webif_oled(2);
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis_webif.setup_webif_tft(2);
-        #endif
+        dis_webif.setup_webif(2);
         #if WIFI_DEBUG >= 1
             Serial.println("Versuche, mit gespeicherter SSID zu verbinden...");
         #endif
         WiFi.begin(ssid.c_str(), password.c_str());
         int timeout = 10;
         while (WiFi.status() != WL_CONNECTED && timeout-- > 0) {
-            #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-                dis_webif.setup_webif_oled(3);
-            #endif
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-                dis_webif.setup_webif_tft(3);
-            #endif
+            dis_webif.setup_webif(3);
             delay(1000);
             #if WIFI_DEBUG >= 1
                 Serial.print(".");
             #endif
         }
         if (WiFi.status() == WL_CONNECTED) {
-            #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-                dis_webif.setup_webif_oled(4);
-            #endif
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-                dis_webif.setup_webif_tft(4);
-            #endif
+            dis_webif.setup_webif(4);
             #if WIFI_DEBUG >= 1
                 Serial.println("\nVerbunden mit: " + String(WiFi.SSID()));
                 Serial.println("Neue IP-Adresse: " + WiFi.localIP().toString());
@@ -268,12 +223,7 @@ void HM_WEBIF::setupWebIF() {
             apserver.handleClient();
         }
     }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis_webif.setup_webif_oled(5);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis_webif.setup_webif_tft(5);
-    #endif
+    dis_webif.setup_webif(5);
     #if WIFI_DEBUG >= 1
         Serial.println("Stopping Access Point...");
     #endif
@@ -297,7 +247,7 @@ void HM_WEBIF::setupWebIF() {
     // Warten, bis alle Verbindungen wirklich getrennt sind
     int timeout = 10000;  // 10 Sekunden Timeout
     unsigned long start = millis();
-    while ((WiFi.status() == WL_CONNECTED || WiFi.softAPgetStationNum() > 0) && millis() - start < timeout) {
+    while ((WiFi.status() == WL_CONNECTED) && millis() - start < timeout) {
         #if WIFI_DEBUG >= 1
             Serial.println("Waiting for WiFi to disconnect...");
         #endif

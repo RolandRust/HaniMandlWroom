@@ -3,7 +3,7 @@ char LANGUAGE2[]            = "English";
 
 //Process Setup
 char TAREVALUES[]			      = "Tarevalues";
-char CALIBRATION[]			    = "Calibration";
+char SCALE[]				        = "Scale";
 char FILL_QUANTITY[]		    = "Fill quantity";
 char AUTOMATIC[]			      = "Automatic";
 char SERVOSETTINGS[]		    = "Servosettings";
@@ -14,10 +14,16 @@ char CLEAR_PREFS[]			    = "Clear Prefs";				//Clear Preferences
 char INA219_SETUP[]			    = "INA219 Setup";
 char SETUP[]                = "Setup";
 
+// Setup Scale
+char CALIBRATION[]			    = "Calibration";
+char MAX_WEIGHT[]           = "max. weight ";
+char CALIBRATION_WEIGHT[]   = "cal. weight";        //Calibration weight
+
 // Setup setup
 char WIFI[]                 = "WiFi";
 char WIFI_SETUP[]           = "WiFi Setup";
-char START_OTA[]            = "Start OTA update";
+char OTA_OFFLINE[]          = "OTA update offline";
+char OTA_ONLINE[]           = "OTA update online";
 char START_WIFI[]           = "Start WiFi"
 char STOP_WIFI[]            = "Stop WiFi"
 char START_AP[]             = "Start AP"              //Start access point
@@ -43,6 +49,9 @@ char WITH_OK_2[]			      = "with ok";				      //		      with ok
 //Setup quantity jars
 char FILL_QUANTITY_JARS[]	  = "Fill quantity jars";
 
+//Rotary
+char SELECT_ROTARY[]        = "Select Rotary"
+
 //Setup Automatik
 char AUTOSTART[]			      = "Autostart";
 char JAR_TOLERANCE[]		    = "Jar tolerance";
@@ -59,6 +68,8 @@ char FINEDOSAGE[]			      = "Finedosage";
 char MAXIMUM[]				      = "Maximum";
 char FULL_MODE[]            = "Full mode";
 char FINEDOSAGE_WEIGHT[]    = "Finedos. weight";                //Finedosage weight
+char SQUEE_TAP_LEFT[]       = "Squee tap left";
+char SERVO_EXPANDED[]       = "Servo expanded"
 
 //Setup Parameter
 char BUZZER[]				        = "Buzzer";
@@ -131,7 +142,7 @@ char OTA_UPDATE[]           = "OTA update";
 //Warnings
 //no scale!
 char NO[] 				    = "no";							//DISPLAY:	no
-char SCALE[]				= "scale!";						//		    scale!
+char SCALE_1[]				= "scale!";					//		    scale!
 //not calibrated
 char NOT[]				    = "not";						//DISPLAY:	not
 char CALIBRATED[]			= "calibrated";					//          calibrated
@@ -192,3 +203,20 @@ char CONNECT[]              = "Connect";
 char MORE_SETTINGS          = "More Settings";
 //char SAVE[]                 = "Save";
 char EXIT[]                 = "Exit";
+
+//Online OTA Update
+char START_UPDATE[]         = "Start Update";
+char FIRMWARE_IS[]          = "Firmware is";
+char UP_TO_DATE[]           = "up to date";
+char NO_UPDATE[]            = "No update";
+char REQUIRED[]             = "required";
+char ERROR[]                = "Error";
+char SUCCESSFULLY[]         = "Successfully";
+char NO_BIN_FILE[]          = "No *.bin file";
+char AVARILABLE[]           = "available";
+char OLD_VERSION[]          = "Old version";
+char NEW_VERSION[]          = "New version";
+char BUTTONS[]              = "Buttons";
+char STOP[]                 = "Stop";
+char UPDATE[]               = "Update";
+

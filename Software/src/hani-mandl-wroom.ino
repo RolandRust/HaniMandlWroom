@@ -1,5 +1,3 @@
-//im manuellen modus noch die gewichtsanzeige anpassen für mit ina oder ohne (warschwidlich der y_offtet wie beim automatick auf y_offset_ina setzen)
-
 /*
   HaniMandl Version W.0.4
   ------------------------
@@ -131,42 +129,38 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <vector>
 #include <U8g2lib.h>                /* aus dem Bibliotheksverwalter */
 #include <HX711.h>                  /* aus dem Bibliotheksverwalter */
 #include <ESP32Servo.h>             /* aus dem Bibliotheksverwalter */
 #include <Adafruit_INA219.h>        /* aus dem Bibliotheksverwalter */
 #include <Preferences.h>            /* aus dem BSP von expressif, wird verfügbar wenn das richtige Board ausgewählt ist */
 #include <nvs_flash.h>              /* aus dem BSP von expressif, wird verfügbar wenn das richtige Board ausgewählt ist */
-#include <TFT_eSPI.h>
+#include <TFT_eSPI.h>               /* aus dem Bibliotheksverwalter */
 
 #include "HardwareLevel.h"
 #include "variables.h"
+#include "variables_display.h"
 #include "display.h"
 #include "WebIF.h"
+#include "read_write_preferences.h"
 
 
 #if HARDWARE_LEVEL == 2
   TwoWire I2C_2 = TwoWire(1);
 #endif
 
-#if SCALE_TYP == 1
+/*#if SCALE_TYP == 1
   #define MAXIMALGEWICHT 1500     // Maximales Gewicht für 2kg Wägezelle
 #elif SCALE_TYP == 2
   #define MAXIMALGEWICHT 4500     // Maximales Gewicht für 5kg Wägezelle
 #else
   #error Keine Wägezelle definiert
-#endif
+#endif*/
 
 // Ansteuerung der Waage
 #define SCALE_READS 2           // Parameter für hx711 Library. Messwert wird aus der Anzahl gemittelt
 #define SCALE_GETUNITS(n)       round(scale.get_units(n))
-
-// Ansteuerung Servo
-#if QUETSCHHAHN_LINKS == 1
-  #define SERVO_WRITE(n)     servo.write(180-n)
-#else
-  #define SERVO_WRITE(n)     servo.write(n)
-#endif
 
 // Rotary Encoder Taster zieht Pegel auf Low
 #define SELECT_SW outputSW
@@ -178,10 +172,11 @@
 #define MODE_HANDBETRIEB 2
 
 // Buzzer Sounds
-#define BUZZER_SHORT   1
-#define BUZZER_LONG    2
-#define BUZZER_SUCCESS 3
-#define BUZZER_ERROR   4
+#define BUZZER_SHORT    1
+#define BUZZER_LONG     2
+#define BUZZER_SUCCESS  3
+#define BUZZER_ERROR    4
+#define BUZZER_START_UP 5
 
 // INA 219
 Adafruit_INA219 ina219;
@@ -192,28 +187,8 @@ HM_Display dis;
 // HM_WEBIF
 HM_WEBIF webif;
 
-
-#if DISPLAY_TYPE == 1
-  #if HARDWARE_LEVEL == 1
-    U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* clock=*/ 22, /* data=*/ 21, /* reset=*/ U8X8_PIN_NONE);
-  #elif HARDWARE_LEVEL == 2
-    U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 21, /* clock=*/ 18, /* data=*/ 17);
-  #elif HARDWARE_LEVEL == 3
-    U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ 21, /* clock=*/ 19, /* data=*/ 20);
-  #endif
-#elif DISPLAY_TYPE == 2
-  U8G2_SSD1309_128X64_NONAME0_F_4W_SW_SPI u8g2(U8G2_R0, /* clock=*/ 18, /* data=*/ 23, /* cs=*/ 5, /* dc=*/ 13, /* reset=*/ 14);
-#elif DISPLAY_TYPE == 3
-  Arduino_DataBus *bus = new Arduino_HWSPI(13 /* DC */, 5 /* CS */);
-  Arduino_GFX *gfx = new Arduino_ST7789(bus, 14 /* RST */, 3 /* rotation */);
-#elif DISPLAY_TYPE == 99
-  U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* clock=*/ 22, /* data=*/ 21, /* reset=*/ U8X8_PIN_NONE);
-  Arduino_DataBus *bus = new Arduino_HWSPI(13 /* DC */, 5 /* CS */);
-  Arduino_GFX *gfx = new Arduino_ST7789(bus, 14 /* RST */, 3 /* rotation */);
-  //Arduino_GFX *gfx = new Arduino_ILI9341(bus, 14 /* RST */, 1 /* rotation */);
-//#else
-//  #error Kein Display definiert
-#endif
+//Preferences
+HM_READ_WRITE_PREFERENCES pref;
 
 //Sprache
 #include "./Resources/resources.h"
@@ -224,46 +199,8 @@ HM_WEBIF webif;
   HM_OTA ota;
 #endif
 
-// Fonts
-#if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-  #include "./Fonts/Punk_Mono_Bold_120_075.h"           //10 x 7
-  #include "./Fonts/Punk_Mono_Bold_160_100.h"           //13 x 9
-  #include "./Fonts/Punk_Mono_Bold_200_125.h"           //16 x 12
-  #include "./Fonts/Punk_Mono_Bold_240_150.h"           //19 x 14
-  #include "./Fonts/Punk_Mono_Bold_320_200.h"           //25 x 18
-  #include "./Fonts/Punk_Mono_Bold_600_375.h"           //48 x 36
-  #include "./Fonts/Punk_Mono_Thin_120_075.h"           //10 x 7
-  #include "./Fonts/Punk_Mono_Thin_160_100.h"           //13 x 9
-  #include "./Fonts/Punk_Mono_Thin_240_150.h"           //19 x 14
-  #include "./Fonts/Icons_Start_Stop.h"                 //A=Start, B=Stop, M=Rahmen
-  #include "./Fonts/Checkbox.h"                         //A=OK, B=nOK
-#endif
-
-//Logos
-#if DISPLAY_TYPE == 1 or DISPLAY_TYPE == 2 or DISPLAY_TYPE == 99
-  #if USER == 2
-    #include "./Logos/LogoGeroldOLED.h"
-  #elif USER == 3
-    #include "./Logos/LogoRoliOLED.h"
-  #else
-    #include "./Logos/LogoBieneOLED.h"
-  #endif
-#endif
-
-
-#if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-  #if USER == 2
-    #include "./Logos/LogoGeroldTFT.h"
-  #elif USER == 3
-    #include "./Logos/LogoRoliTFT.h"
-  #else
-    #include "./Logos/LogoBieneTFT.h"
-  #endif
-#endif
-
 Servo servo;
 HX711 scale;
-Preferences preferences;
 
 // Denstrukturen für Rotary Encoder
 struct rotary {                        
@@ -272,17 +209,18 @@ struct rotary {
   int Maximum;
   int Step;
 };
-#define SW_WINKEL    0
-#define SW_KORREKTUR 1
-#define SW_FLUSS     2
-#define SW_MENU      3
+//#define SW_WINKEL    0
+//#define SW_KORREKTUR 1
+//#define SW_FLUSS     2
+//#define SW_MENU      3
 struct rotary rotaries[4];          // Werden im setup() initialisiert
-int rotary_select = SW_WINKEL;
+//rotary_select = SW_WINKEL;
+bool delay_rotary = false;
 
 // Allgemeine Variablen
 int i;                                              // general count variable
 
-long preferences_chksum;                            // checksum to not write uncoherent prefs
+//long preferences_chksum;                            // checksum to not write uncoherent prefs
 
 bool counted = true;                                // Jar count flag
 
@@ -375,7 +313,7 @@ void IRAM_ATTR isr1() {
   static unsigned long last_interrupt_time = 0; 
   unsigned long interrupt_time = millis();
   if (interrupt_time - last_interrupt_time > 300) {      // If interrupts come faster than 300ms, assume it's a bounce and ignore
-    if ( mode == MODE_AUTOMATIK && servo_enabled == 0 ) { // nur im Automatik-Modus interessiert uns der Click
+    if (mode == MODE_AUTOMATIK && servo_enabled == 0) { // nur im Automatik-Modus interessiert uns der Click
       rotary_select = (rotary_select + 1) % 4;
       #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
         if      (rotary_select == SW_KORREKTUR) {correction_old = -99999;}
@@ -398,43 +336,51 @@ void IRAM_ATTR isr1() {
 // SW_FLUSS     = Faktor für Flussgeschwindigkeit
 // SW_MENU      = Zähler für Menuauswahlen  
 void IRAM_ATTR isr2() {
-  int aState = digitalRead(outputA);          // Reads the "current" state of the outputA
-  static int aLastState = 2;                  // reale Werte sind 0 und 1
-  if (aState != aLastState) {     
-    // If the outputB state is different to the outputA state, that means the encoder is rotating clockwise
-    if (digitalRead(outputB) != aState) {
-      rotaries[rotary_select].Value += rotaries[rotary_select].Step;
-    }
-    else {    // counter-clockwise
-      rotaries[rotary_select].Value -= rotaries[rotary_select].Step;
-    }
-    rotaries[rotary_select].Value = constrain(
-      rotaries[rotary_select].Value,
-      rotaries[rotary_select].Minimum,
-      rotaries[rotary_select].Maximum
-    );
-    #if DEBUG_HM >= 4
-      Serial.print(" Rotary Value changed to ");
-      Serial.println(getRotariesValue(rotary_select));
-    #endif
+  static unsigned long lastInterruptTime = 0;
+  unsigned long now = millis();
+  int interrupt_delay = 0;                           // Entprellen 
+  if (digitalRead(switch_setup_pin) == HIGH and delay_rotary == true and change_value == false) {
+    interrupt_delay = 80;                             // Für alle die im Setup Menue den Rotary drehen wie ein Hornochse. Würde es nur für den TFT brauchen
   }
-  aLastState = aState; // Updates the previous state of the outputA with the current state
+  if (now - lastInterruptTime > interrupt_delay) {    // Entprellung: x ms Mindestabstand
+    int aState = digitalRead(outputA);                // Aktuellen Zustand von outputA lesen
+    static int aLastState = 2;                        // reale Werte sind 0 und 1
+    if (aState != aLastState) {     
+      if (digitalRead(outputB) != aState) {
+        rotaries[rotary_select].Value += rotaries[rotary_select].Step;
+      } else {  
+        rotaries[rotary_select].Value -= rotaries[rotary_select].Step;
+      }
+      // Begrenzung auf min/max Werte
+      rotaries[rotary_select].Value = constrain(
+        rotaries[rotary_select].Value,
+        rotaries[rotary_select].Minimum,
+        rotaries[rotary_select].Maximum
+      );
+      #if DEBUG_HM >= 4
+        Serial.print(" Rotary Value changed to ");
+        Serial.println(getRotariesValue(rotary_select));
+      #endif
+      aLastState = aState;  // Speichern des neuen Zustands
+      lastInterruptTime = now;  // Zeit für Entprellung speichern
+    }
+  }
 }
 
 //
 // Skalierung des Rotaries für verschiedene Rotary Encoder
-int getRotariesValue( int rotary_mode ) {
-  return ((rotaries[rotary_mode].Value - (rotaries[rotary_mode].Value % (rotaries[rotary_mode].Step * ROTARY_SCALE))) / ROTARY_SCALE );
+int getRotariesValue(int rotary_mode) {
+  return ((rotaries[rotary_mode].Value - (rotaries[rotary_mode].Value % (rotaries[rotary_mode].Step * rotary_scale))) / rotary_scale );
 }
 
 void setRotariesValue( int rotary_mode, int rotary_value ) {
-  rotaries[rotary_mode].Value = rotary_value * ROTARY_SCALE;
+  rotaries[rotary_mode].Value = rotary_value * rotary_scale;
 }
 
 void initRotaries( int rotary_mode, int rotary_value, int rotary_min, int rotary_max, int rotary_step ) {
-  rotaries[rotary_mode].Value     = rotary_value * ROTARY_SCALE;
-  rotaries[rotary_mode].Minimum   = rotary_min   * ROTARY_SCALE;
-  rotaries[rotary_mode].Maximum   = rotary_max   * ROTARY_SCALE;
+  rotaries[rotary_mode].Value     = rotary_value * rotary_scale;
+  rotaries[rotary_mode].Minimum   = rotary_min   * rotary_scale;
+  rotaries[rotary_mode].Maximum   = rotary_max   * rotary_scale;
   rotaries[rotary_mode].Step      = rotary_step;
   #if DEBUG_HM >= 1
     Serial.print("initRotaries..."); 
@@ -444,312 +390,11 @@ void initRotaries( int rotary_mode, int rotary_value, int rotary_min, int rotary
     Serial.print(" Min: ");          Serial.print(rotaries[rotary_mode].Minimum);
     Serial.print(" Max: ");          Serial.print(rotaries[rotary_mode].Maximum);
     Serial.print(" Step: ");         Serial.print(rotaries[rotary_mode].Step);
-    Serial.print(" Scale: ");        Serial.println(ROTARY_SCALE);
+    Serial.print(" Scale: ");        Serial.println(rotary_scale);
   #endif
 }
 // Ende Funktionen für den Rotary Encoder
 //
-
-void getPreferences(void) {
-  char output[30];
-  preferences.begin("EEPROM", false);                     // Parameter aus dem EEPROM lesen
-  factor                = preferences.getFloat("factor", 0.0);  // falls das nicht gesetzt ist -> Waage ist nicht kalibriert
-  pos                   = preferences.getUInt("pos", 0);
-  weight_empty          = preferences.getUInt("weight_empty", 0); 
-  correction            = preferences.getUInt("correction", 0);
-  autostart             = preferences.getUInt("autostart", 0);
-  autocorrection        = preferences.getUInt("autocorrection", 0);
-  init_weight_f         = preferences.getUInt("init_weight_f", init_weight_f);  // bei 0 aus.A.P.
-  overfill_gr           = preferences.getUInt("overfill_gr", 5);
-  fquantity_index       = preferences.getUInt("fquantity_index", 3);
-  angle_min             = preferences.getUInt("angle_min", angle_min);
-  buzzermode            = preferences.getUInt("buzzermode", buzzermode);
-  ledmode               = preferences.getUInt("ledmode", ledmode);
-  showlogo              = preferences.getUInt("showlogo", showlogo);
-  showcredits           = preferences.getUInt("showcredits", showcredits);
-  cali_weight           = preferences.getUInt("cali_weight", cali_weight);
-  jartolerance          = preferences.getUInt("jartolerance", jartolerance);
-  current_servo         = preferences.getUInt("current_servo", current_servo);
-  show_current          = preferences.getUInt("show_current", show_current);
-  color_scheme          = preferences.getUInt("color_scheme", color_scheme);
-  color_marker          = preferences.getUInt("color_marker", color_marker);
-  use_turntable         = preferences.getUInt("use_turntable", use_turntable);
-  lingo                 = preferences.getUInt("lingo", lingo);
-  wait_befor_fill       = preferences.getUInt("wait_befor_fill", wait_befor_fill);
-  fullmode              = preferences.getUInt("fullmode", fullmode);
-  font_typ              = preferences.getUInt("font_typ", font_typ);
-  menu_rotation         = preferences.getUInt("menu_rotation", menu_rotation);
-  ssid                  = preferences.getString("ssid", ssid);
-  password              = preferences.getString("password", password);
-  preferences_chksum = factor + pos + weight_empty + correction + autostart + autocorrection + init_weight_f + 
-                       overfill_gr + fquantity_index + angle_min + buzzermode + ledmode + 
-                       showlogo + showcredits +  cali_weight + current_servo + jartolerance + show_current + 
-                       color_scheme + color_marker + use_turntable + lingo + wait_befor_fill + fullmode + font_typ +
-                       menu_rotation;
-  #if USER == 2
-    int ResetGewichte[] = {50,125,250,500,1000,};
-    int ResetGlasTyp[] = {0,0,0,0,0,};
-  #elif USER == 3
-    int ResetGewichte[] = {250,500,0,0,0,};
-    int ResetGlasTyp[] = {0,0,0,0,0,};
-  #else
-    int ResetGewichte[] = {125,250,250,500,500,};
-    int ResetGlasTyp[] = {0,1,2,1,0,};
-  #endif
-  i = 0;
-  while( i < 5) {
-    sprintf(output, "Gewicht%d", i);
-    glaeser[i].Gewicht = preferences.getInt(output, ResetGewichte[i]);
-    preferences_chksum += glaeser[i].Gewicht;
-    sprintf(output, "GlasTyp%d", i);
-    glaeser[i].GlasTyp = preferences.getInt(output, ResetGlasTyp[i]);
-    preferences_chksum += glaeser[i].GlasTyp;
-    sprintf(output, "Tara%d", i);
-    glaeser[i].Tare= preferences.getInt(output, -9999);
-    preferences_chksum += glaeser[i].Tare;
-    sprintf(output, "TripCount%d", i);
-    glaeser[i].TripCount = preferences.getInt(output, 0);
-    preferences_chksum += glaeser[i].TripCount;
-    sprintf(output, "Count%d", i);
-    glaeser[i].Count = preferences.getInt(output, 0);
-    preferences_chksum += glaeser[i].Count;
-    i++;
-  }
-  i = 0;
-  while( i < 5) {
-    sprintf(output, "angle_max%d", i);
-    angle_max[i] = preferences.getInt(output, angle_max[i]);
-    preferences_chksum += angle_max[i];
-    sprintf(output, "angle_fine%d", i);
-    angle_fine[i] = preferences.getInt(output, angle_fine[i]);
-    preferences_chksum += angle_fine[i];
-    sprintf(output, "finedos_weight%d", i);
-    finedos_weight[i] = preferences.getFloat(output, finedos_weight[i]);
-    preferences_chksum += finedos_weight[i];
-    i++;
-  }
-  preferences.end();
-  #if DEBUG_HM >= 1
-    Serial.println("get Preferences:");
-    Serial.print("pos = ");                   Serial.println(pos);
-    Serial.print("factor = ");                Serial.println(factor);
-    Serial.print("weight_empty = ");          Serial.println(weight_empty);
-    Serial.print("correction = ");            Serial.println(correction);
-    Serial.print("autostart = ");             Serial.println(autostart);
-    Serial.print("autocorrection = ");        Serial.println(autocorrection);
-    Serial.print("init_weight_f = ");         Serial.println(init_weight_f);  //A.P.
-    Serial.print("overfill_gr = ");           Serial.println(overfill_gr);
-    Serial.print("fquantity_index = ");       Serial.println(fquantity_index);
-    Serial.print("angle_min = ");             Serial.println(angle_min);
-    Serial.print("fullmode = ");              Serial.println(fullmode);
-    Serial.print("buzzermode = ");            Serial.println(buzzermode);
-    Serial.print("ledmode = ");               Serial.println(ledmode);
-    Serial.print("showlogo = ");              Serial.println(showlogo);
-    Serial.print("showcredits = ");           Serial.println(showcredits);
-    Serial.print("current_servo = ");         Serial.println(current_servo);
-    Serial.print("color_scheme = ");          Serial.println(color_scheme);
-    Serial.print("color_marker = ");          Serial.println(color_marker);
-    Serial.print("cali_weight = ");           Serial.println(cali_weight);
-    Serial.print("jartolerance = ");          Serial.println(jartolerance);
-    Serial.print("show_current = ");          Serial.println(show_current);
-    Serial.print("use_turntable = ");         Serial.println(use_turntable);
-    Serial.print("lingo = ");                 Serial.println(lingo);
-    Serial.print("wait_befor_fill = ");       Serial.println(wait_befor_fill);
-    Serial.print("font_typ = ");              Serial.println(font_typ);
-    Serial.print("menu_rotation = ");         Serial.println(menu_rotation);
-    Serial.print("ssid = ");                  Serial.println(ssid);
-    Serial.print("password = ");              Serial.println(password);
-    i = 0;
-    while( i < 5 ) {
-      sprintf(output, "Gewicht_%d = ", i);
-      Serial.print(output);
-      Serial.println(glaeser[i].Gewicht);
-      sprintf(output, "GlasTyp_%d = ", i);
-      Serial.print(output);         
-      Serial.println(GlasTypArray[glaeser[i].GlasTyp]);
-      sprintf(output, "Tara%d = ", i);
-      Serial.print(output);         
-      Serial.println(glaeser[i].Tare);
-      i++;
-    }
-    i = 0;
-    while( i < 5 ) {
-      sprintf(output, "angle_max%d = ", i);
-      Serial.print(output);         Serial.println(angle_max[i]);
-      sprintf(output, "angle_fine%d = ", i);
-      Serial.print(output);         Serial.println(angle_fine[i]);
-      sprintf(output, "finedos_weight%d = ", i);
-      Serial.print(output);         Serial.println(finedos_weight[i]);
-      i++;
-    }
-    Serial.print("Checksumme:");    Serial.println(preferences_chksum);    
-  #endif
-}
-
-void setPreferences(void) {
-  char output[30];
-  long preferences_newchksum;
-  int winkel = getRotariesValue(SW_WINKEL);
-  int i;
-  preferences.begin("EEPROM", false);
-  // Winkel-Einstellung separat behandeln, ändert sich häufig
-  if ( winkel != preferences.getUInt("pos", 0) ) {
-    preferences.putUInt("pos", winkel);
-    #if DEBUG_HM >= 1
-      Serial.print("winkel gespeichert: ");
-      Serial.println(winkel);
-    #endif
-  }
-  // Counter separat behandeln, ändert sich häufig
-  for ( i=0 ; i < 5; i++ ) {
-    sprintf(output, "TripCount%d", i);
-    if (glaeser[i].TripCount != preferences.getInt(output, 0)) {
-      preferences.putInt(output, glaeser[i].TripCount);
-    }
-    sprintf(output, "Count%d", i);
-    if (glaeser[i].Count != preferences.getInt(output, 0)) {
-      preferences.putInt(output, glaeser[i].Count);
-    }
-    #if DEBUG_HM >= 1
-      Serial.print("Counter gespeichert: Index ");
-      Serial.print(i);
-      Serial.print(" Trip ");
-      Serial.print(glaeser[fquantity_index].TripCount);
-      Serial.print(" Gesamt ");
-      Serial.println(glaeser[fquantity_index].Count);      
-    #endif
-  }
-  // Den Rest machen wir gesammelt, das ist eher statisch
-  preferences_newchksum = factor + weight_empty + correction + autostart + autocorrection + init_weight_f +
-                          fquantity_index + angle_min + overfill_gr +
-                          buzzermode + ledmode + showlogo + showcredits + current_servo + cali_weight + 
-                          jartolerance + show_current + color_scheme + color_marker + use_turntable + lingo + 
-                          wait_befor_fill + fullmode + font_typ + menu_rotation;
-  i = 0;
-  while( i < 5 ) {
-    preferences_newchksum += glaeser[i].Gewicht;
-    preferences_newchksum += glaeser[i].GlasTyp;
-    preferences_newchksum += glaeser[i].Tare;
-    i++;
-  }
-  i = 0;
-  while( i < 5 ) {
-    preferences_newchksum += angle_max[i];
-    preferences_newchksum += angle_fine[i];
-    preferences_newchksum += finedos_weight[i];
-    i++;
-  }
-  if( preferences_newchksum == preferences_chksum ) {
-    #if DEBUG_HM >= 1
-      Serial.println("Preferences unverändert");
-    #endif
-    return;
-  }
-  preferences_chksum = preferences_newchksum;
-  preferences.putFloat("factor", factor);
-  preferences.putUInt("weight_empty", weight_empty);
-  preferences.putUInt("correction", correction);
-  preferences.putUInt("autostart", autostart);
-  preferences.putUInt("autocorrection", autocorrection);
-  preferences.putUInt("init_weight_f", init_weight_f); //A.P.
-  preferences.putUInt("overfill_gr", overfill_gr);
-  preferences.putUInt("angle_min", angle_min);
-  //preferences.putUInt("angle_max", angle_max);
-  //preferences.putUInt("angle_fine", angle_fine);
-  preferences.putUInt("fullmode", fullmode);
-  preferences.putUInt("fquantity_index", fquantity_index);
-  preferences.putUInt("buzzermode", buzzermode);
-  preferences.putUInt("ledmode", ledmode);
-  preferences.putUInt("showlogo", showlogo);
-  preferences.putUInt("showcredits", showcredits);
-  preferences.putUInt("cali_weight", cali_weight);
-  preferences.putUInt("jartolerance", jartolerance);
-  preferences.putUInt("current_servo", current_servo);
-  preferences.putUInt("show_current", show_current);
-  preferences.putUInt("color_scheme", color_scheme);
-  preferences.putUInt("color_marker", color_marker);
-  preferences.putUInt("use_turntable", use_turntable);
-  preferences.putUInt("lingo", lingo);
-  preferences.putUInt("wait_befor_fill", wait_befor_fill);
-  preferences.putUInt("font_typ", font_typ);
-  preferences.putUInt("menu_rotation", menu_rotation);
-  //preferences.putString("ssid", ssid);
-  //preferences.putString("password", password);
-  i = 0;
-  while( i < 5 ) {
-    sprintf(output, "Gewicht%d", i);
-    preferences.putInt(output, glaeser[i].Gewicht);
-    sprintf(output, "GlasTyp%d", i);
-    preferences.putInt(output, glaeser[i].GlasTyp);  
-    sprintf(output, "Tara%d", i);
-    preferences.putInt(output, glaeser[i].Tare);
-    i++;
-  }
-  i = 0;
-  while( i < 5 ) {
-    sprintf(output, "angle_max%d", i);
-    preferences.putInt(output, angle_max[i]);
-    sprintf(output, "angle_fine%d", i);
-    preferences.putInt(output, angle_fine[i]);
-    sprintf(output, "finedos_weight%d", i);
-    preferences.putFloat(output, finedos_weight[i]);
-    i++;
-  }
-  preferences.end();
-  #if DEBUG_HM >= 1
-    Serial.println("Set Preferences:");
-    Serial.print("pos = ");                   Serial.println(winkel);
-    Serial.print("factor = ");                Serial.println(factor);
-    Serial.print("weight_empty = ");          Serial.println(weight_empty);
-    Serial.print("correction = ");            Serial.println(correction);
-    Serial.print("autostart = ");             Serial.println(autostart);
-    Serial.print("init_weight_f = ");         Serial.println(init_weight_f); //A.P.
-    Serial.print("autocorrection = ");        Serial.println(autocorrection);
-    Serial.print("overfill_gr = ");           Serial.println(overfill_gr);
-    Serial.print("fquantity_index = ");       Serial.println(fquantity_index);
-    Serial.print("angle_min = ");             Serial.println(angle_min);
-    //Serial.print("angle_max = ");           Serial.println(angle_max);
-    //Serial.print("angle_fine = ");          Serial.println(angle_fine);
-    Serial.print("fullmode = ");              Serial.println(fullmode);
-    Serial.print("buzzermode = ");            Serial.println(buzzermode);
-    Serial.print("ledmode = ");               Serial.println(ledmode);
-    Serial.print("showlogo = ");              Serial.println(showlogo);
-    Serial.print("showcredits = ");           Serial.println(showcredits);
-    Serial.print("current_servo = ");         Serial.println(current_servo);
-    Serial.print("cali_weight = ");           Serial.println(cali_weight);
-    Serial.print("jartolerance = ");          Serial.println(jartolerance);
-    Serial.print("show_current = ");          Serial.println(show_current);
-    Serial.print("color_scheme = ");          Serial.println(color_scheme);
-    Serial.print("color_marker = ");          Serial.println(color_marker);
-    Serial.print("use_turntable = ");         Serial.println(use_turntable);
-    Serial.print("lingo = ");                 Serial.println(lingo);
-    Serial.print("wait_befor_fill = ");       Serial.println(wait_befor_fill);
-    Serial.print("font_typ = ");              Serial.println(font_typ);
-    Serial.print("menu_rotation = ");         Serial.println(menu_rotation);
-    //Serial.print("ssid = ");                  Serial.println(ssid);
-    //Serial.print("password = ");              Serial.println(password);
-    i = 0;
-    while( i < 5 ) {
-      sprintf(output, "Gewicht%d = ", i);
-      Serial.print(output);         Serial.println(glaeser[i].Gewicht);
-      sprintf(output, "GlasTyp%d = ", i);
-      Serial.print(output);         Serial.println(GlasTypArray[glaeser[i].GlasTyp]);
-      sprintf(output, "Tara%d = ", i);
-      Serial.print(output);         Serial.println(glaeser[i].Tare);
-      i++;
-    }
-    i = 0;
-    while( i < 5 ) {
-      sprintf(output, "angle_max%d = ", i);
-      Serial.print(output);         Serial.println(angle_max[i]);
-      sprintf(output, "angle_fine%d = ", i);
-      Serial.print(output);         Serial.println(angle_fine[i]);
-      sprintf(output, "finedos_weight%d = ", i);
-      Serial.print(output);         Serial.println(finedos_weight[i]);
-      i++;
-    }
-  #endif
-}
 
 void setupTripCounter(void) {
   int j;
@@ -766,21 +411,14 @@ void setupTripCounter(void) {
       mode = -1;
       return;
     }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_trip_counter_oled(1);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_trip_counter_tft(1);
-    #endif
+    dis.setup_trip_counter(1);
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
       //verlasse Screen
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       i = 0;
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        change = true;
-      #endif
+      change = true;
     }
   }
   i = 1;
@@ -792,21 +430,14 @@ void setupTripCounter(void) {
       mode = -1;
       return;
     }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_trip_counter_oled(2);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_trip_counter_tft(2);
-    #endif
+    dis.setup_trip_counter(2);
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
       //verlasse Screen
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       i = 0;
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        change = true;
-      #endif
+      change = true;
     }
   }
   i = 1;
@@ -824,21 +455,14 @@ void setupTripCounter(void) {
       filling_weight += glaeser[j].Gewicht * glaeser[j].TripCount / 1000.0;
       j++;
     }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_trip_counter_oled(3);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_trip_counter_tft(3);
-    #endif
+    dis.setup_trip_counter(3);
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
       //verlasse Screen
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       i = 0;
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        change = true;
-      #endif
+      change = true;
     }
   }
   i = 1;
@@ -855,26 +479,17 @@ void setupTripCounter(void) {
         return;
       }
       pos = getRotariesValue(SW_MENU);
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_trip_counter_oled(4);
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_trip_counter_tft(4);
-      #endif
+      dis.setup_trip_counter(4);
       if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-          dis.setup_trip_counter_oled_exit();
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-          dis.setup_trip_counter_tft_exit();
-        #endif
+
+        dis.setup_exit();
         if ( pos == 0) {
           j = 0;
           while ( j < 5  ) {
             glaeser[j].TripCount = 0;
             j++;
           }
-          setPreferences();
+          pref.setPreferences();
         }
         delay(1000);
         mode = -1;
@@ -888,9 +503,7 @@ void setupCounter(void) {
   int j;
   i = 1;
   float filling_weight = 0;
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    draw_frame = true;
-  #endif
+  draw_frame = true;
   while (i > 0) { //Erster Screen: Anzahl pro Glasgröße
     if (digitalRead(button_stop_pin) == HIGH or digitalRead(switch_setup_pin) == LOW) {
       while (digitalRead(button_stop_pin) == HIGH) {
@@ -899,21 +512,14 @@ void setupCounter(void) {
       mode = -1;
       return;
     }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_counter_oled(1);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_counter_tft(1);
-    #endif
+    dis.setup_counter(1);
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
       //verlasse Screen
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       i = 0;
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        change = true;
-      #endif
+      change = true;
     }
   }
   i = 1;
@@ -925,21 +531,15 @@ void setupCounter(void) {
       mode = -1;
       return;
     }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_counter_oled(2);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_counter_tft(2);
-    #endif
+    dis.setup_counter(2);
+
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
       //verlasse Screen
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       i = 0;
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        change = true;
-      #endif
+      change = true;
     }
   }
   i = 1;
@@ -957,21 +557,14 @@ void setupCounter(void) {
       filling_weight += glaeser[j].Gewicht * glaeser[j].Count / 1000.0;
       j++;
     }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_counter_oled(3);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_counter_tft(3);
-    #endif
+    dis.setup_counter(3);
     if ((digitalRead(SELECT_SW)) == SELECT_PEGEL) {
       //verlasse Screen
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       i = 0;
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        change = true;
-      #endif
+      change = true;
     }
   }
   i = 1;
@@ -988,22 +581,12 @@ void setupCounter(void) {
         return;
       }
       pos = getRotariesValue(SW_MENU);
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_counter_oled(4);
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_counter_tft(4);
-      #endif
+      dis.setup_counter(4);
       if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
         while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
           delay(1);
         }
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-          dis.setup_counter_oled_exit();
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-          dis.setup_counter_tft_exit();
-        #endif
+        dis.setup_exit();
         if ( pos == 0) {
           j = 0;
           while ( j < 5  ) {
@@ -1011,7 +594,7 @@ void setupCounter(void) {
             glaeser[j].TripCount = 0;
             j++;
           }
-          setPreferences();
+          pref.setPreferences();
         }
         delay(1000);
         mode = -1;
@@ -1046,31 +629,24 @@ void setupTare(void) {
       #endif
       i++;
     }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_tare_oled(getRotariesValue(SW_MENU));
-    #endif
-    #if DISPLAY_TYPE ==993 or DISPLAY_TYPE == 999
-      dis.setup_tare_tft(getRotariesValue(SW_MENU));
-    #endif
+    pos = getRotariesValue(SW_MENU);
+    dis.setup_tare();
   }
   mode = -1;
   delay(2000);
 }
 
-void setupCalibration(void) {
+void setupCalibration() {
   float gewicht_raw;
-  #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-    dis.setup_calibration_oled(1);
-  #endif
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    dis.setup_calibration_tft(1);
-  #endif
+  dis.setup_calibration(1);
   i = 1;
   while (i > 0) {
     if (digitalRead(button_stop_pin) == HIGH or digitalRead(switch_setup_pin) == LOW) {
       while (digitalRead(button_stop_pin) == HIGH) {
         delay(1);
       }
+      change_value = false;
+      draw_frame = true;
       mode = -1;
       return;
     }
@@ -1081,26 +657,22 @@ void setupCalibration(void) {
       i = 0;
     }
   }
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    dis.setup_calibration_tft(2);
-  #endif
-  initRotaries(SW_MENU, cali_weight, 100, 9999, 1); 
+  dis.setup_calibration(2);
+  initRotaries(SW_MENU, cali_weight, 100, 999999, 1); 
   i = 1;
   while (i > 0) {
     if (digitalRead(button_stop_pin) == HIGH or digitalRead(switch_setup_pin) == LOW) {
       while (digitalRead(button_stop_pin) == HIGH) {
         delay(1);
       }
+      change_value = false;
+      draw_frame = true;
+      initRotaries(SW_MENU, 0, 0, numItems-1, 1);
       mode = -1;
       return;
     }
     cali_weight = getRotariesValue(SW_MENU);
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_calibration_oled(2);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_calibration_tft(3);
-    #endif
+    dis.setup_calibration(3);
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
       gewicht_raw  = scale.get_units(10);
       factor       = gewicht_raw / cali_weight;
@@ -1117,30 +689,158 @@ void setupCalibration(void) {
         Serial.println(factor);
       #endif        
       delay(1000);
+      change_value = false;
+      draw_frame = true;
       mode = -1;
       i = 0;        
     }
   }
 }
 
+void setupMaxWeight() {
+  menuitems = {MAX_WEIGHT[lingo], CALIBRATION_WEIGHT[lingo], SAVE[lingo]};
+  numItems = menuitems.size();
+  change_value = false;
+  int lastmax_lc_weight     = max_lc_weight;
+  int lastmax_lc_cal        = max_lc_cal;
+  initRotaries(SW_MENU, 0, 0, numItems-1, 1);
+  draw_frame = true;
+  i = 1;
+  while (i > 0) {
+    if (digitalRead(button_stop_pin) == HIGH or digitalRead(switch_setup_pin) == LOW) {
+      while (digitalRead(button_stop_pin) == HIGH) {
+        delay(1);
+      }
+      max_lc_weight = lastmax_lc_weight;
+      max_lc_cal = lastmax_lc_cal;
+      restartMenu = true;
+      draw_frame = true;
+      pos = 1;
+      return;
+    }
+    if (change_value == false) {
+      pos = getRotariesValue(SW_MENU);
+    }
+    else {
+      switch (pos) {
+        case 0: max_lc_weight   = step2loadcell(getRotariesValue(SW_MENU));
+                break;
+        case 1: max_lc_cal      = step2calweight(getRotariesValue(SW_MENU));
+                break;
+      }
+    }
+    dis.setup_max_weight();
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == false) {
+      while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+        delay(1);
+      }
+      switch (pos) { 
+        case 0: initRotaries(SW_MENU, loadcell2step(max_lc_weight) , 0, 6, 1);
+                break;
+        case 1: initRotaries(SW_MENU, calweight2step(max_lc_cal) , 0, 12, 1);
+                break;
+      }
+      change_value = true;
+    }
+    // Änderung im Menupunkt übernehmen
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1) {
+      while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+        delay(1);
+      }
+      initRotaries(SW_MENU, pos, 0, numItems-1, 1);
+      change_value = false;
+    }
+    // Menu verlassen
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == numItems-1) {
+      while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+        delay(1);
+      }
+      cali_weight = max_lc_cal;
+      dis.setup_exit();
+      delay(1000);
+      restartMenu = true;
+      pos = 0;
+      draw_frame = true;
+      pref.setPreferences();
+      return;
+    }
+  }
+}
+
+void setupScale(void) {
+  draw_frame = true;
+  restartMenu = true;
+  i = 1;
+  pos = 0;
+  while (i > 0) {
+    if (restartMenu) {
+      menuitems = {CALIBRATION[lingo], MAX_WEIGHT[lingo], BACK[lingo]};
+      numItems = menuitems.size();
+      change_value = false;
+      initRotaries(SW_MENU, pos, 0, numItems-1, 1);
+      restartMenu = false;
+    }
+    if (digitalRead(button_stop_pin) == HIGH or digitalRead(switch_setup_pin) == LOW) {
+      while (digitalRead(button_stop_pin) == HIGH) {
+        delay(1);
+      }
+      mode = -1;
+      return;
+    }
+    if (change_value == false) {
+      pos = getRotariesValue(SW_MENU);
+      if (pos == numItems - 1) {
+        pos = numItems - 1;
+      }
+    }
+    else {
+      switch (pos) {
+        case 0: setupCalibration();
+                break;
+        case 1: setupMaxWeight();
+                break;
+      }
+    }
+    if (!restartMenu) {
+      dis.setup_scale();
+    }
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems - 1  && change_value == false) {
+      while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+        delay(1);
+      }
+      change_value = true;
+    }
+    // Menu verlassen
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == numItems-1) {
+      while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+        delay(1);
+      }
+      dis.setup_exit();
+      delay(1000);
+      mode = -1;
+      i = 0;
+    }
+  }
+}
+
 void setupServoWinkel(void) {
-  int menuitem;
-  int menuitem_used         = 6;
   int lastmin               = angle_min;
   int lastfine              = angle_fine[fullmode-1];
   int lastmax               = angle_max[fullmode-1];
   int lastfinedosageweight  = finedos_weight[fullmode-1];
   int lastfullmode          = fullmode;
-  int value_old;
-  bool change_value = false;
-  initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    draw_frame = true;
-    change = false;
-    value_old = -1;
-    int menu_items_number = 7;
-    const char *menuitems[menu_items_number] = {LIVESETUP[lingo], MINIMUM[lingo], FULL_MODE[lingo], FINEDOSAGE_WEIGHT[lingo], FINEDOSAGE[lingo], MAXIMUM[lingo], SAVE[lingo]};
-  #endif
+  int lastsqueetapleft      = squee_tap_left;
+  int lastservoexpanded     = servo_expanded;
+  delay_rotary = true;
+  draw_frame = true;
+  value_old = -1;
+  menuitems = {
+    LIVESETUP[lingo], MINIMUM[lingo], FULL_MODE[lingo], FINEDOSAGE_WEIGHT[lingo], FINEDOSAGE[lingo], MAXIMUM[lingo],
+    SQUEE_TAP_LEFT[lingo], SERVO_EXPANDED[lingo], SAVE[lingo]
+  };
+  numItems = menuitems.size();
+  change_value = false;
+  initRotaries(SW_MENU, 0, 0, numItems-1, 1);
   i = 1;
   while (i > 0) {
     if (digitalRead(button_stop_pin) == HIGH or digitalRead(switch_setup_pin) == LOW) {
@@ -1152,51 +852,47 @@ void setupServoWinkel(void) {
       angle_max[fullmode-1]          = lastmax;
       finedos_weight[fullmode-1]     = lastfinedosageweight;
       fullmode                       = lastfullmode;
+      squee_tap_left                 = lastsqueetapleft;
+      servo_expanded                 = lastservoexpanded;
+      delay_rotary = false;
       if (servo_live == true) {
-        SERVO_WRITE(angle_min);
+        servo.write(squee_tap_left ? 180 - angle_min : angle_min);
       }
       mode = -1;
       return;
     }
     if (change_value == false) {
-      menuitem = getRotariesValue(SW_MENU);
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        pos = menuitem;
-      #endif
-      if (menuitem == menuitem_used) {
-        menuitem = 6;
-      }
+      pos = getRotariesValue(SW_MENU);
     }
     else {
-      switch (menuitem) {
+      switch (pos) {
         case 0: servo_live  = getRotariesValue(SW_MENU);
                 break;
         case 1: angle_min   = getRotariesValue(SW_MENU);
-                if (servo_live == true) SERVO_WRITE(angle_min);
+                if (servo_live == true) servo.write(squee_tap_left ? 180 - angle_min : angle_min);
                 break;
         case 2: fullmode    = getRotariesValue(SW_MENU);
                 break;
         case 3: finedos_weight[fullmode-1] = getRotariesValue(SW_MENU);
                 break;
         case 4: angle_fine[fullmode-1] = getRotariesValue(SW_MENU);
-                if (servo_live == true) SERVO_WRITE(angle_fine[fullmode-1]);
+                if (servo_live == true) servo.write(squee_tap_left ? 180 - angle_fine[fullmode-1] : angle_fine[fullmode-1]);
                 break;
         case 5: angle_max[fullmode-1]   = getRotariesValue(SW_MENU);
-                if (servo_live == true) SERVO_WRITE(angle_max[fullmode-1]);
+                if (servo_live == true) servo.write(squee_tap_left ? 180 - angle_max[fullmode-1] : angle_max[fullmode-1]);
+                break;
+        case 6: squee_tap_left          = getRotariesValue(SW_MENU);
+                break;
+        case 7: servo_expanded          = getRotariesValue(SW_MENU);
                 break;
       }
     }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_servoWinkel_oled(change_value, menuitem, menuitem_used);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_servoWinkel_tft(change_value, menu_items_number, menuitems);
-    #endif
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < menuitem_used  && change_value == false) {
+    dis.setup_servoWinkel();
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == false) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
-      switch (menuitem) { 
+      switch (pos) { 
         case 0: initRotaries(SW_MENU, servo_live, 0, 1, 1);
               break;
         case 1: initRotaries(SW_MENU, angle_min, angle_hard_min, angle_fine[fullmode-1], 1);
@@ -1214,59 +910,66 @@ void setupServoWinkel(void) {
         case 5: initRotaries(SW_MENU, angle_max[fullmode-1], angle_fine[fullmode-1], angle_hard_max, 1);
               value_old = lastmax;
               break;
+        case 6: initRotaries(SW_MENU, squee_tap_left, 0, 1, 1);
+              value_old = lastsqueetapleft;
+              break;
+        case 7: initRotaries(SW_MENU, servo_expanded, 0, 1, 1);
+              value_old = lastservoexpanded;
+              break;
       }
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        value_old = -1;
-      #endif
+      value_old = -1;
       change_value = true;
     }
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < menuitem_used  && change_value == true) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == true) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       if (servo_live == true) {
-        SERVO_WRITE(angle_min);
+        servo.write(squee_tap_left ? 180 - angle_min : angle_min);
       }
-      initRotaries(SW_MENU, menuitem, 0, menuitem_used, 1);
+      initRotaries(SW_MENU, pos, 0, numItems-1, 1);
       change_value = false;
     }
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem == 6) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == 8) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_servoWinkel_oled_exit(menuitem);
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_servoWinkel_tft_exit();
-      #endif
+      dis.setup_exit();
+      servo.detach();
+      delay(900);
+      if (servo_expanded == 1) {
+        servo.attach(servo_pin,  750, 2500);
+        servo.setPeriodHertz(100);
+      }
+      else{
+        servo.attach(servo_pin, 1000, 2000);
+      }
+      delay_rotary = false;
       mode = -1;
-      delay(1000);
+      delay(100);
       i = 0;
     }
   }
 }
 
 void setupAutomatik(void) {
-  int menuitem;
-  int menuitem_used       = 7;
-  int menuoffset          = 0;
-  int menuoffset_tft      = 0;
   int lastautostart       = autostart;
   int lastglastoleranz    = jartolerance;
   int lastautokorrektur   = autocorrection;
   int lastkulanz          = overfill_gr;
   int korrektur_alt       = correction;
   int intGewicht_alt      = init_weight_f;
-  bool change_value       = false;
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    draw_frame = true;
-    change = false;
-    value_old = -1;
-    int menuitems_number = 8;
-    const char *menuitems[menuitems_number] = {AUTOSTART[lingo], JAR_TOLERANCE[lingo], CORRECTION[lingo], AUTOCORRECTION[lingo], KINDNESS[lingo], FLOW_G_OVER_TIME[lingo], WAIT_BEFOR_FILL[lingo], SAVE[lingo]};
-  #endif
-  initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
+  change_value       = false;
+  delay_rotary = true;
+  draw_frame = true;
+  value_old = -1;
+  menuitems = {
+    AUTOSTART[lingo], JAR_TOLERANCE[lingo], CORRECTION[lingo], AUTOCORRECTION[lingo], KINDNESS[lingo], FLOW_G_OVER_TIME[lingo],
+    WAIT_BEFOR_FILL[lingo], SAVE[lingo]
+  };
+  numItems = menuitems.size();
+  change_value = false;
+  initRotaries(SW_MENU, 0, 0, numItems-1, 1);
   i = 1;
   while (i > 0) {
     if (digitalRead(button_stop_pin) == HIGH or digitalRead(switch_setup_pin) == LOW) {
@@ -1281,20 +984,16 @@ void setupAutomatik(void) {
       init_weight_f  = intGewicht_alt;
       setRotariesValue(SW_KORREKTUR, korrektur_alt);
       rotary_select  = SW_MENU;
+      delay_rotary = false;
       mode = -1;
+      delay_rotary = false;
       return;
     }
     if (change_value == false) {
-      menuitem = getRotariesValue(SW_MENU);
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        pos = menuitem;
-      #endif
-      if (menuitem == menuitem_used) {
-        menuitem = 7;
-      }
+      pos = getRotariesValue(SW_MENU);
     }
     else {
-      switch (menuitem) {
+      switch (pos) {
         case 0: autostart       = getRotariesValue(SW_MENU);
                 break;
         case 1: jartolerance    = getRotariesValue(SW_MENU);
@@ -1311,24 +1010,13 @@ void setupAutomatik(void) {
                 break;
       }
     }
-    if (menuitem >= 6 and menuoffset == 0) {
-      menuoffset = 1;
-    }
-    else if (menuitem == 0 and menuoffset == 1) {
-      menuoffset = 0;
-    }
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_automatik_oled(menuoffset, change_value, menuitem, menuitem_used);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_automatik_tft(change_value, menuitems, menuitems_number);
-    #endif
+    dis.setup_automatik();
     // Menupunkt zum Ändern ausgewählt
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < menuitem_used  && change_value == false) { 
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == false) { 
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
-      switch (menuitem) { 
+      switch (pos) { 
         case 0: rotary_select = SW_MENU;
                 initRotaries(SW_MENU, autostart, 0, 1, 1);
                 break;
@@ -1356,26 +1044,22 @@ void setupAutomatik(void) {
       change_value = true;
     }
     // Änderung im Menupunkt übernehmen
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < menuitem_used  && change_value == true) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == true) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       rotary_select = SW_MENU;
-      initRotaries(SW_MENU, menuitem, 0, menuitem_used, 1);
+      initRotaries(SW_MENU, pos, 0, numItems-1, 1);
       change_value = false;
     }
     // Menu verlassen 
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem == 7) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == 7) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_automatik_oled_exit(menuitem);
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_automatik_tft_exit();
-      #endif
+      dis.setup_exit();
       delay(1000);
+      delay_rotary = false;
       mode = -1;
       i = 0;
     }
@@ -1384,9 +1068,7 @@ void setupAutomatik(void) {
 }
 
 void setupFuellmenge(void) {
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    dis.setup_fuellmenge_tft(0);
-  #endif
+  dis.setup_fuellmenge(0);
   int j;
   initRotaries(SW_MENU, fquantity_index, 0, 4, 1);
   i = 1;
@@ -1399,12 +1081,7 @@ void setupFuellmenge(void) {
       return;
     }
     pos = getRotariesValue(SW_MENU);
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_fuellmenge_oled(1);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_fuellmenge_tft(1);
-    #endif
+    dis.setup_fuellmenge(1);
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) { // Füllmenge gewählt
       while((digitalRead(SELECT_SW) == SELECT_PEGEL)) {
         delay(1);
@@ -1413,19 +1090,14 @@ void setupFuellmenge(void) {
     }
   }
   i = 1;
-  initRotaries(SW_MENU, weight2step(glaeser[pos].Gewicht) , 25, weight2step(MAXIMALGEWICHT), 1);
+  initRotaries(SW_MENU, weight2step(glaeser[pos].Gewicht) , 25, weight2step(max_lc_weight), 1);
   while (i > 0){
     if ((digitalRead(button_stop_pin)) == HIGH  or digitalRead(switch_setup_pin) == LOW) {
       mode = -1;
       return;
     }
     glaeser[pos].Gewicht = step2weight(getRotariesValue(SW_MENU));
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_fuellmenge_oled(2);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_fuellmenge_tft(2);
-    #endif
+    dis.setup_fuellmenge(2);
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) { // Gewicht bestätigt
       while((digitalRead(SELECT_SW) == SELECT_PEGEL)) {
         delay(1);
@@ -1444,12 +1116,7 @@ void setupFuellmenge(void) {
       return;
     }
     glaeser[pos].GlasTyp = getRotariesValue(SW_MENU);
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_fuellmenge_oled(3);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_fuellmenge_tft(3);
-    #endif
+    dis.setup_fuellmenge(3);
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) { //GlasTyp bestätigt
       while((digitalRead(SELECT_SW) == SELECT_PEGEL)) {
         delay(1);
@@ -1465,8 +1132,6 @@ void setupFuellmenge(void) {
 }
 
 void setupParameter(void) {
-  int menuitem;
-  int menuitem_used = 5;
   int lastbuzzer    = buzzermode;
   int lastled       = ledmode;
   int lastlogo      = showlogo;
@@ -1474,19 +1139,23 @@ void setupParameter(void) {
   int lastcolor_scheme = color_scheme;
   int lastcolor_marker = color_marker;
   int lastchange_menu_rotation = menu_rotation;
-  bool change_value = false;
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    change_scheme = true;
-    change_marker = true;
-    value_old = -1;
-    change = false;
-    menuitem_used = 8;
-    int menu_items_number = 9;
-    const char *menuitems[menu_items_number] = {BUZZER[lingo], LED_1[lingo], SHOW_LOGO[lingo], SHOW_CREDITS[lingo], CHANGE_ROTATION[lingo], COLORSCHEME[lingo], MARKER_COLOR[lingo], FONT[lingo], SAVE[lingo]};
-  #endif
-  initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
+  delay_rotary = true;
+  draw_frame = true;
+  value_old = -1;
+  menuitems = {
+    BUZZER[lingo], LED_1[lingo], SHOW_LOGO[lingo], SHOW_CREDITS[lingo], CHANGE_ROTATION[lingo], COLORSCHEME[lingo], MARKER_COLOR[lingo],
+    FONT[lingo], SAVE[lingo]
+  };
+  numItems = menuitems.size();
+  int numItemsOld = numItems;
+  change_value = false;
+  initRotaries(SW_MENU, 0, 0, numItems-1, 1);
   i = 1;
   while (i > 0) {
+    if (numItemsOld != numItems) {
+      initRotaries(SW_MENU, 0, 0, numItems-1, 1);
+      numItemsOld = numItems;
+    }
     if (digitalRead(button_stop_pin) == HIGH or digitalRead(switch_setup_pin) == LOW) {
       while (digitalRead(button_stop_pin) == HIGH) {
         delay(1);
@@ -1498,20 +1167,15 @@ void setupParameter(void) {
       color_scheme = lastcolor_scheme;
       color_marker = lastcolor_marker;
       menu_rotation = lastchange_menu_rotation;
+      delay_rotary = false;
       mode = -1;
       return;
     }
     if (change_value == false) {
-      menuitem = getRotariesValue(SW_MENU);
-      //#if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        pos = menuitem;
-      //#endif
-      if (menuitem == menuitem_used) {
-        menuitem = menuitem_used;
-      }
+      pos = getRotariesValue(SW_MENU);
     }
     else {
-      switch (menuitem) {
+      switch (pos) {
         case 0: buzzermode            = getRotariesValue(SW_MENU);
                 break;
         case 1: ledmode               = getRotariesValue(SW_MENU);
@@ -1531,18 +1195,13 @@ void setupParameter(void) {
       }
     }
     // Menu
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_parameter_oled(change_value, menuitem, menuitem_used);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_parameter_tft(menu_items_number, change_value, menuitems);
-    #endif
+    dis.setup_parameter();
     // Menupunkt zum Ändern ausgewählt
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < menuitem_used  && change_value == false) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == false) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       } 
-      switch (menuitem) { 
+      switch (pos) { 
         case 0: initRotaries(SW_MENU, buzzermode,           0, 1, 1);
                 break;
         case 1: initRotaries(SW_MENU, ledmode,              0, 1, 1);
@@ -1560,35 +1219,25 @@ void setupParameter(void) {
         case 7: initRotaries(SW_MENU, font_typ,             0, 1, 1);
                 break;
       }
-      #if DISPLAY_TYPE == 3 or DISPLAY_TYPE == 99
-        wert_old = -1;
-      #endif
       change_value = true;
     }
     // Änderung im Menupunkt übernehmen
-    Serial.println("-------");
-    Serial.println(pos);
-    Serial.println(menuitem_used);
-
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < menuitem_used ) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
-      initRotaries(SW_MENU, menuitem, 0, menuitem_used, 1);
+      initRotaries(SW_MENU, pos, 0, numItems-1, 1);
       change_value = false;
     }
     // Menu verlassen
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == menuitem_used) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == numItems-1) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_parameter_oled_exit(menuitem);
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_parameter_tft_exit();
-      #endif
+      //setPreferences();
+      dis.setup_exit();
       delay(1000);
+      delay_rotary = false;
       mode = -1;
       i = 0;
     }
@@ -1596,19 +1245,18 @@ void setupParameter(void) {
 }
 
 void setupClearPrefs(void) {
-  int menu_items_number = 3;
+  menuitems = {
+    CLEAR_PREFERENCES[lingo], CLEAR_NVS_MEMORY[lingo], BACK[lingo]
+  };
   #if DREHTELLER == 1
-    menu_items_number = menu_items_number + 1;
+    if (menuitems.size() >= 2) {
+      size_t last = menuitems.size() - 1;
+      menuitems.insert(menuitems.begin() + last, RESET_TURNTABLE[lingo]);
+    }
   #endif
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    const char *menuitems[menu_items_number] = {CLEAR_PREFERENCES[lingo], CLEAR_NVS_MEMORY[lingo], BACK[lingo]};
-    #if DREHTELLER == 1
-      menuitems[menu_items_number - 1] = menuitems[menu_items_number -2];
-      menuitems[menu_items_number - 2] = RESET_TURNTABLE[lingo];
-    #endif
-    draw_frame = true;
-  #endif
-  initRotaries(SW_MENU, menu_items_number -1 , 0, menu_items_number -1, 1);
+  numItems = menuitems.size();
+  draw_frame = true;
+  initRotaries(SW_MENU, numItems-1 , 0, numItems-1, 1);
   i = 1;
   while (i > 0) {
     if (digitalRead(button_stop_pin) == HIGH  or digitalRead(switch_setup_pin) == LOW) {
@@ -1619,20 +1267,13 @@ void setupClearPrefs(void) {
       return;
     }
     pos = getRotariesValue(SW_MENU);
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_clear_prefs_oled(menu_items_number);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_clear_prefs_tft(menu_items_number, menuitems);
-    #endif
+    dis.setup_clear_prefs();
     if ((digitalRead(SELECT_SW)) == SELECT_PEGEL) {  
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       if (pos == 0) {
-        preferences.begin("EEPROM", false);
-        preferences.clear();
-        preferences.end();
+        pref.clear_Preferences();
         //Da machen wir gerade einen restart
         ESP.restart();
       }
@@ -1645,17 +1286,12 @@ void setupClearPrefs(void) {
       else if (pos == 2) {
         if (use_turntable == 1) {
           use_turntable = 0;
-          setPreferences();
+          pref.setPreferences();
           //Da machen wir gerade einen restart
           ESP.restart();
         }
       }
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_clear_prefs_oled_exit();
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_clear_prefs_tft_exit();
-      #endif
+      dis.setup_exit();
       delay(1000);
       mode = -1;
       i = 0;
@@ -1663,30 +1299,42 @@ void setupClearPrefs(void) {
   }
 }
 
-void setupINA219(void) {                            //Funktioniert nur wenn beide Menüs die gleiche Anzahl haben. Feel free to change it :-)
-  int menuitem;
+void setupINA219(void) {
   int lastcurrent             = current_servo;
   int lastwinkel_min          = angle_min;
   int lastshow_current        = show_current;
-  bool change_value = false;
-  int menuitem_used           = 2;
-  String calibration_status   = START[lingo];
-  String quetschhan           = CLOSE[lingo];
+  int current_old             = show_current;
+  calibration_status          = START[lingo];
+  quetschhan                  = CLOSE[lingo];
   bool cal_done = false;
-  int cal_winkel = 0;
+  cal_winkel = 0;
   int j = 0;
   int k = 0;
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    change = false;
-    draw_frame = true;
-    value_old = -1;
-    int menu_items_number = 3;
-    const char *menuitems_1[menu_items_number] = {SERVO_CURRENT[lingo], CAL_HONEY_GATE[lingo], SAVE[lingo]};
-    const char *menuitems_2[menu_items_number] = {SERVO_CURRENT[lingo], SHOW_CURRENT[lingo], SAVE[lingo]};
-  #endif
-  initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
+  change_value = false;
+  change = false;
+  change_menu = true;
+  draw_frame = true;
+  value_old = -1;
   i = 1;
   while (i > 0) {
+    if (change_menu) {
+      change_menu = false;
+      change = true;
+      if (current_servo > 0) {
+        menuitems = {
+          SERVO_CURRENT[lingo], CAL_HONEY_GATE[lingo], SAVE[lingo]
+        };
+      }
+      else {
+        menuitems = {
+          SERVO_CURRENT[lingo], SHOW_CURRENT[lingo], SAVE[lingo]
+        };
+      }
+      numItems = menuitems.size();
+      if (change_value == false) {
+        initRotaries(SW_MENU, 0, 0, numItems-1, 1);
+      }
+    }
     if (digitalRead(button_stop_pin) == HIGH  or digitalRead(switch_setup_pin) == LOW) {
       while (digitalRead(button_stop_pin) == HIGH) {
         delay(1);
@@ -1698,44 +1346,37 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
       return;
     }
     if (change_value == false) {
-      menuitem = getRotariesValue(SW_MENU);
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        pos = menuitem;
-      #endif
-      if (menuitem == menuitem_used) {
-        menuitem = 6;
-      }
+      pos = getRotariesValue(SW_MENU);
     }
     else {
-      switch (menuitem) {
-        case 0: current_servo         = getRotariesValue(SW_MENU);
+      switch (pos) {
+        case 0: current_servo = getRotariesValue(SW_MENU);
+                if (current_servo <= 50 and current_old != current_servo) {
+                  change_menu = true;
+                  current_old = current_servo;            
+                }
                 break;
         case 1: if (current_servo == 0) {
-                  show_current = getRotariesValue(SW_MENU);
+                  show_current          = getRotariesValue(SW_MENU);
                 }
                 else {
                   j                     = 1;
                   calibration_status    = START[lingo];
                   change_value          = false;
-                  menuitem_used         = 1;
+                  numItems              = 1;
                   setRotariesValue(SW_MENU, 0);
-                  initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
+                  initRotaries(SW_MENU, 0, 0, numItems, 1);
                 }
                 break;
       }
     }
     // Menu
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_INA219_menu_oled(menuitem, menuitem_used, change_value);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_INA219_menu_tft(change_value, menu_items_number, menuitems_1, menuitems_2);
-    #endif
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < menuitem_used  && change_value == false) {
+    dis.setup_INA219(1); //main menu
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == false) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       } 
-      switch (menuitem) { 
+      switch (pos) { 
         case 0: initRotaries(SW_MENU, current_servo, 0, 1500, 50);
                 break;
         case 1: if (current_servo == 0) {initRotaries(SW_MENU, show_current, 0, 1, 1);}
@@ -1744,24 +1385,19 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
       change_value = true;
     }
     // Änderung im Menupunkt übernehmen
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < menuitem_used  && change_value == true) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == true) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
-      initRotaries(SW_MENU, menuitem, 0, menuitem_used, 1);
+      initRotaries(SW_MENU, pos, 0, numItems-1, 1);
       change_value = false;
     }
     // Menu verlassen 
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem == 6) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == numItems-1) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_INA219_oled_save(menuitem);
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_INA219_tft_save();
-      #endif
+      dis.setup_exit();
       delay(1000);
       mode = -1;
       i = 0;
@@ -1776,18 +1412,13 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
       }
       if (change_value == false) {
         menuitem = getRotariesValue(SW_MENU);
-        if (menuitem == menuitem_used) {
+        if (menuitem == numItems) {
           menuitem = 6;
         }
       }
-      menuitem_used = 1;
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_INA219_cal1_oled(calibration_status, change_value, menuitem,  menuitem_used);
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_INA219_cal1_tft(calibration_status, change_value, menuitem,  menuitem_used); //das j könnte probleme machen
-      #endif
-      if (change_value == true && menuitem < menuitem_used) {
+      numItems = 1;
+      dis.setup_INA219(2);
+      if (change_value == true && menuitem < numItems) {
         lastcurrent = current_servo;
         calibration_status = CALIBRATION_RUNNING[lingo];
         quetschhan = CLOSE[lingo];
@@ -1795,18 +1426,18 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
         cal_winkel = 0;
         k = 1;
       }
-      if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < menuitem_used  && change_value == false) {
-        while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-          delay(1);
-        } 
-        change_value = true;
-      }
-      // Änderung im Menupunkt übernehmen
-      if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < menuitem_used  && change_value == true) {
+      if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < numItems  && change_value == false) {
         while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
           delay(1);
         }
-        initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
+        change_value = true;
+      }
+      // Änderung im Menupunkt übernehmen
+      if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem < numItems  && change_value == true) {
+        while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
+          delay(1);
+        }
+        initRotaries(SW_MENU, 0, 0, numItems, 1);
         change_value = false;
       }
       //verlassen
@@ -1816,41 +1447,32 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
         }
         j = 0;
         change_value = false;
-        menuitem_used = 2;
+        numItems = 2;
         draw_frame = true;
-        initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
+        initRotaries(SW_MENU, 0, 0, numItems, 1);
       }
       if (k == 1) {draw_frame = true;}
       while (k > 0) {
-        SERVO_WRITE(90);
+        servo.write(squee_tap_left ? 180 - 90 : 90);
         quetschhan = OPEN[lingo];
         scaletime = millis();
         bool measurement_run = false;
         while (!cal_done) {
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_INA219_cal2_oled(calibration_status, cal_winkel, quetschhan);
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_INA219_cal2_tft(calibration_status, cal_winkel, quetschhan);
-          #endif
+          dis.setup_INA219(3);
           if (millis() - scaletime >= 800 and !measurement_run) {
-            SERVO_WRITE(cal_winkel);
+            servo.write(squee_tap_left ? 180 - cal_winkel : cal_winkel);
             quetschhan = CLOSE[lingo];
             measurement_run = true;
             scaletime = millis();
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              change = true;
-            #endif
+            change = true;
           }
           else if (millis() - scaletime >= 800 and measurement_run) {
             current_mA = GetCurrent(50);
             if (current_mA > current_servo - 30) {   //30mA unter dem max. Wert Kalibrieren
-              SERVO_WRITE(90);
+              servo.write(squee_tap_left ? 180 - 90 : 90);
               quetschhan = OPEN[lingo];
               cal_winkel++;
-              #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-                change = true;
-              #endif
+              change = true;
             }
             else {
               cal_done = true;
@@ -1872,25 +1494,18 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
             angle_min = lastwinkel_min;
             cal_done = true;
             change_value = false;
-            menuitem_used = 2;
-            initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
+            numItems = 2;
+            initRotaries(SW_MENU, 0, 0, numItems, 1);
           }
         }
         if (cal_done and k > 1) {draw_frame = true;}
         while (cal_done and k > 1) {
           current_mA = GetCurrent(50);
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            if (change_value != current_mA) {
-              change = true;
-              change_value = current_mA;
-            }
-          #endif
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_INA219_cal3_oled(calibration_status);
-          #endif
-          #if DISPLAY_TYPE == 99 or DISPLAY_TYPE == 999
-            dis.setup_INA219_cal3_tft(calibration_status);
-          #endif
+          if (change_value != current_mA) {
+            change = true;
+            change_value = current_mA;
+          }
+          dis.setup_INA219(4);
           //verlassen
           if (digitalRead(button_stop_pin) == HIGH) {
             while(digitalRead(button_stop_pin) == HIGH) {
@@ -1900,9 +1515,9 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
             k = 0;
             draw_frame = true;
             change_value = false;
-            menuitem_used = 2;
+            numItems = 2;
             angle_min = lastwinkel_min;
-            initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
+            initRotaries(SW_MENU, 0, 0, numItems, 1);
           }
           if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
             while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
@@ -1912,9 +1527,9 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
             k = 0;
             mode = -1;
             change_value = false;
-            menuitem_used = 2;
-            initRotaries(SW_MENU, 0, 0, menuitem_used, 1);
-            setPreferences();
+            numItems = 2;
+            initRotaries(SW_MENU, 0, 0, numItems, 1);
+            pref.setPreferences();
             return;
           }
         }
@@ -1925,16 +1540,10 @@ void setupINA219(void) {                            //Funktioniert nur wenn beid
 
 void setupAbout(void) {
   i = 1;
-  uint8_t baseMac[6];
   #if DREHTELLER == 1
     esp_err_t ret = esp_wifi_get_mac(WIFI_IF_STA, baseMac);
   #endif
-  #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-    dis.setup_about_oled(baseMac);
-  #endif
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    dis.setup_about_tft(baseMac);
-  #endif
+  dis.setup_about();
   while (i == 1) {
     if (digitalRead(SELECT_SW) == SELECT_PEGEL or digitalRead(button_stop_pin) == HIGH or digitalRead(switch_setup_pin) == LOW) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL or digitalRead(button_stop_pin) == HIGH) {
@@ -1948,17 +1557,12 @@ void setupAbout(void) {
 
 void setupLanguage(void) {
   int last_lingo = lingo;
-  int MenuepunkteAnzahl = sizeof(LANGUAGE2)/sizeof(LANGUAGE2[0]);
-  const char *menuepunkte[MenuepunkteAnzahl];
   value_old = -1;
-  for (int i = 0; i < MenuepunkteAnzahl; i++) {
-    menuepunkte[i] = LANGUAGE2[i];
-  }
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    pos_old = -1;
-    change_scheme = true;
-  #endif
-  initRotaries(SW_MENU, lingo, 0, MenuepunkteAnzahl, 1);
+  delay_rotary = true;
+  draw_frame = true;
+  menuitems.assign(std::begin(LANGUAGE2), std::end(LANGUAGE2));
+  numItems = menuitems.size();
+  initRotaries(SW_MENU, lingo, 0, numItems, 1);
   i = 1;
   while (i > 0) {
     if (digitalRead(button_stop_pin) == HIGH  or digitalRead(switch_setup_pin) == LOW) {
@@ -1967,42 +1571,32 @@ void setupLanguage(void) {
       }
       lingo = last_lingo;
       mode = -1;
+      delay_rotary = false;
       return;
     }
     pos = getRotariesValue(SW_MENU);
     if (value_old != pos) {
       value_old = pos;
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_language_oled(pos, MenuepunkteAnzahl, menuepunkte);
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_language_tft(pos, MenuepunkteAnzahl, menuepunkte);
-      #endif
+      dis.setup_language();
       setRotariesValue(SW_MENU, pos); //we einä dreit wiä äs Rindvieh
     }
     // Änderung im Menupunkt übernehmen
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < MenuepunkteAnzahl) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       lingo = pos;
       value_old = -1;
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        change_scheme = true;
-      #endif
+      draw_frame = true;
     }
     // Menu verlassen 
-    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == MenuepunkteAnzahl) {
+    if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == numItems) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_language_oled_exit();
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_language_tft_exit();
-      #endif
+      dis.setup_exit();
       delay(1000);
+      delay_rotary = false;
       mode = -1;
       i = 0;
     }
@@ -2010,19 +1604,19 @@ void setupLanguage(void) {
 }
 
 void setupWiFi(void) {
-  int menu_items_number = 2;
+  menuitems = {
+    WIFI_SETUP[lingo], BACK[lingo]
+  };
   #if OTA == 1
-    menu_items_number++;
+    if (menuitems.size() >= 2) {
+      size_t last = menuitems.size() - 1;
+      menuitems.insert(menuitems.begin() + last, OTA_ONLINE[lingo]);
+      menuitems.insert(menuitems.begin() + last, OTA_OFFLINE[lingo]);
+    }
   #endif
-  const char *menuitems[menu_items_number] = {WIFI_SETUP[lingo], BACK[lingo]};
-  #if OTA == 1
-    menuitems[menu_items_number - 1] = menuitems[menu_items_number -2];
-    menuitems[menu_items_number - 2] = START_OTA[lingo];
-  #endif
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    draw_frame = true;
-  #endif
-  initRotaries(SW_MENU, 0 , 0, menu_items_number -1, 1);
+  numItems = menuitems.size();
+  draw_frame = true;
+  initRotaries(SW_MENU, 0 , 0, numItems-1, 1);
   i = 1;
   while (i > 0) {
     if (digitalRead(button_stop_pin) == HIGH  or digitalRead(switch_setup_pin) == LOW) {
@@ -2033,35 +1627,27 @@ void setupWiFi(void) {
       return;
     }
     pos = getRotariesValue(SW_MENU);
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-      dis.setup_setup_oled(menuitems, menu_items_number);
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.setup_setup_tft(menuitems, menu_items_number);
-    #endif
+    dis.setup_wifi();
     if ((digitalRead(SELECT_SW)) == SELECT_PEGEL) {
       while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
         delay(1);
       }
       if (pos == 0) {
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-          draw_frame = true;
-        #endif
         webif.setupWebIF();
+        draw_frame = true;
       }
-      else if (pos == 1) {
-        ota.ota_setup(switch_setup_pin, button_stop_pin);
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
+      #if OTA == 1
+        else if (pos == 1) {
+          ota.ota_setup(switch_setup_pin, button_stop_pin);
           draw_frame = true;
-        #endif
-      }
+        }
+        else if (pos == 2 and OTA == 1) {
+          ota.online_ota_setup();
+          draw_frame = true;
+        }
+      #endif
       if (menuitems[pos] == BACK[lingo]) {
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_setup_oled_exit();
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_setup_tft_exit();
-      #endif
+      dis.setup_exit();
       delay(1000);
       mode = -1;
       i = 0;
@@ -2071,83 +1657,12 @@ void setupWiFi(void) {
 }
 
 void setupDrehteller(void) {
-  //Start Menue
   #if DREHTELLER == 1
     unsigned long time;
-    int ota_update = 0;
-    bool ota_update_enable = false;
-    int menu_items_number_2 = 4;
-    esp_now_msg_recived = false;
-    memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-    memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
-    strcpy(myMessageToBeSent.text, "ota_update_status");
-    espnow_send_data();
-    time = millis();
-    while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
-      delay(10);
-    }
-    if(strcmp(myReceivedMessage.text, "ok_ota_update_status") == 0) {
-      if (myReceivedMessage.value == 1) {
-        ota_update = 1;
-        menu_items_number_2 = 5;
-      }
-    }
-    int x_pos;
-    int k = 0;
-    int menuitem_1;
-    int menu_items_number_1 = 3;
-    int last_menu_pos_1 = 0;
-    const char *menuitems_1[menu_items_number_1] = {TURNTABLE[lingo], INIT_TURNTABLE[lingo], SAVE[lingo]};
-    int menuitem_2;
-    int last_menu_pos_2 = 0;
-    const char *menuitems_2[menu_items_number_2] = {TURNTABLE[lingo], SETUP_TURNTABLE[lingo], SETUP_DRIPPRODECTION[lingo], SAVE[lingo]};
-    int menuitem_3;
-    int menu_items_number_3 = 5;
-    int last_menu_pos_3 = 0;
-    const char *menuitems_3[menu_items_number_3] = {MOVE_JAR[lingo], CENTER_JAR[lingo], SPEED_INIT[lingo], SPEED_RUN[lingo], SAVE[lingo]};
-    int menuitem_4;
-    int menu_items_number_4 = 7;
-    int last_menu_pos_4 = 0;
-    const char *menuitems_4[menu_items_number_4] = {OPEN_DRIPPROTECTION[lingo], CLOSE_DRIPPROTECTION[lingo], SPEED_DRIPPROTECTION[lingo], WAIT_TO_CLOSE_DP[lingo], DP_MIN_ANGLE[lingo], DP_MAX_ANGLE[lingo], SAVE[lingo]};
-    int last_use_turntable = use_turntable;
-    bool change_value = false;
-    bool turntable_running = false;
-    bool center_jar_running = false;
-    bool ts_open_running = false;
-    bool ts_close_running = false;
-    bool ts_angle_running = false;
-    unsigned long turntable_millis;
-    unsigned long prev_millis = 0;
-    int speed_init = 0;
-    int speed_run = 0;
-    int jar_center_pos = 0;
-    int speed_init_old = 0;
-    int speed_run_old = 0;
-    int jar_center_pos_old = 0;
-    int move_steps = 50;
-    int move_vale = 0;
-    int ts_angle_min = 0;
-    int ts_angle_max = 180;
-    int ts_waittime = 0;
-    int ts_speed = 0;
-    int ts_angle_min_old = 0;
-    int ts_angle_max_old = 180;
-    int ts_waittime_old = 0;
-    int ts_speed_old = 0;
-    int ts_angle_min_start = 0;
-    int ts_angle_max_start = 0;
-    esp_now_msg_recived = false;
-    esp_now_change = true;
-    esp_now_wait = "";
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      change = false;
-      value_old = -1;
-      esp_now_wait_old = "...";
-      dis.setup_turntable_frame();
-    #endif
-    initRotaries(SW_MENU, 0, 0, menu_items_number_1 -1, 1);
-    //Init Turntable
+    unsigned long pre_millis;
     turntable_init = false;
+    dis.setup_turntable(0);
+    //check connection and the init_turntable
     esp_now_msg_recived = false;
     memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
     memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
@@ -2166,63 +1681,112 @@ void setupDrehteller(void) {
     else {  //no connection to the turntable
       i = 0;
       esp_now_msg_recived = false;
-      #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-        dis.setup_turntable_no_connection_oled();
-      #endif
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.setup_turntable_no_connection_tft();
-      #endif
+      dis.setup_turntable(1);
       delay(4000);
+      mode = -1;
+      return;
     }
-    if (ota_update == 1) {
-      menuitems_2[menu_items_number_2 - 2] = ENABLE_OTA_UPDATE[lingo];
-      menuitems_2[menu_items_number_2 - 1] = SAVE[lingo];
+    //check if ota update from the turntable is enebled
+    int ota_update = 0;
+    esp_now_msg_recived = false;
+    memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+    memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+    strcpy(myMessageToBeSent.text, "ota_update_status");
+    espnow_send_data();
+    time = millis();
+    while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+      delay(10);
     }
-    while (i > 0) {
-      //Menue 1 (Turntable init nOK)
+    if(strcmp(myReceivedMessage.text, "ok_ota_update_status") == 0) {
+      if (myReceivedMessage.value == 1) {
+        ota_update = 1;
+      }
+    }
+    //Variables
+    int last_use_turntable = use_turntable;
+    int use_turntable_old = use_turntable;
+    unsigned long turntable_millis;
+    int move_steps = 50;
+    int jar_center_pos_old = 0;
+    int move_vale = 0;
+    bool ts_open_running = false;
+    bool ts_close_running = false;
+    bool ts_angle_running = false;
+    ts_angle_min = 0;
+    ts_angle_max = 180;
+    int ts_angle_min_old = 0;
+    int ts_angle_max_old = 180;
+    int ts_angle_min_start = 0;
+    int ts_angle_max_start = 0;
+    ts_waittime = 0;
+    int ts_waittime_old = 0;
+    ts_speed = 0;
+    int ts_speed_old = 0;
+    pos_old = 0;
+    change_menu = true;
+    turntable_running = false;
+    center_jar_running = false;
+    change_value = false;
+    clear_tft = 0;
+    i = 1;
+    while(i >= 0) {
+      //Main menu
       while (i == 1) {
-        if (turntable_init == true) {
-          i = 2;
-          initRotaries(SW_MENU, 0, 0, menu_items_number_2 -1, 1);
-          esp_now_msg_recived = false;
+        if(strcmp(myReceivedMessage.text, "init_error") == 0) {
           memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu1_1_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu1_1_tft();
-          #endif
-          break;
+          change_menu = true;
+          turntable_init = 0;
+        }
+        if (change_menu) {
+          change_menu = false;
+          if (turntable_init and use_turntable) {
+            if (clear_tft == 0) {clear_tft = 1;}
+            menuitems = {TURNTABLE[lingo], SETUP_TURNTABLE[lingo], SETUP_DRIPPRODECTION[lingo], SAVE[lingo]};
+            if (ota_update = 1) {
+              auto it = std::find(menuitems.begin(), menuitems.end(), SAVE[lingo]);
+              if (it != menuitems.end()) {
+                menuitems.insert(it, ENABLE_OTA_UPDATE[lingo]);
+              }
+            }
+          }
+          else if (use_turntable) {
+            if (clear_tft == 0) {clear_tft = 1;}
+            menuitems = {TURNTABLE[lingo], INIT_TURNTABLE[lingo], SAVE[lingo]};
+          }
+          else {
+            if (clear_tft == 0) {clear_tft = 1;}
+            menuitems = {TURNTABLE[lingo], SAVE[lingo]};
+          }
+          numItems = menuitems.size();
+          if (!change_value) {
+            if (turntable_init) {
+              if (pos_old > 0) {
+                initRotaries(SW_MENU, pos_old, 0, numItems-1, 1);
+                pos_old = 0;
+              }
+              else {
+                initRotaries(SW_MENU, 0, 0, numItems-1, 1);
+              }
+            }
+            else if (use_turntable) {
+              initRotaries(SW_MENU, 1, 0, numItems-1, 1);
+            }
+            else {
+              initRotaries(SW_MENU, 0, 0, numItems-1, 1);
+            }
+          }
         }
         if ((digitalRead(button_stop_pin) == HIGH and turntable_running == false) or digitalRead(switch_setup_pin) == LOW) {
           while (digitalRead(button_stop_pin) == HIGH) {
             delay(1);
           }
-          esp_now_msg_recived = false;
           use_turntable = last_use_turntable;
-          rotary_select = SW_MENU;
           mode = -1;
-          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
           return;
         }
-        if (esp_now_msg_recived == true and strcmp(myReceivedMessage.text, "init_error") == 0) {
-          esp_now_msg_recived = false;
-          turntable_init = false;
-          turntable_running = false;
-          turntable_millis = 0;
-          prev_millis = 0;
-          esp_now_wait = "";
-          initRotaries(SW_MENU, 1, 0, 1, 1);
-          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            esp_now_change = true;
-          #endif
-        }
         if (turntable_running == true) {
-          initRotaries(SW_MENU, last_menu_pos_1, 0, menu_items_number_1 - 1, 1);                         //Wenn einer am rotary dreht wider zurücksetzen
-          if (millis() - turntable_millis > 60000 or digitalRead(button_stop_pin) == HIGH) {             //Timeaut, wenn der Befehl nicht in 60s geschaft wird oder Abbrechen wenn Stop Taste gedrückt wird
+          initRotaries(SW_MENU, 1, 0, numItems - 1, 1);                                      //Wenn einer am rotary dreht wider zurücksetzen
+          if (millis() - time > 60000 or digitalRead(button_stop_pin) == HIGH) {             //Timeaut, wenn der Befehl nicht in 60s geschaft wird oder Abbrechen wenn Stop Taste gedrückt wird
             while (digitalRead(button_stop_pin) == HIGH) {
               delay(1);
             }
@@ -2230,384 +1794,96 @@ void setupDrehteller(void) {
             espnow_send_data();
             turntable_init = false;
             turntable_running = false;
-            turntable_millis = 0;
-            prev_millis = 0;
             esp_now_wait = "";
-            initRotaries(SW_MENU, 1, 0, 1, 1);
-            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              esp_now_change = true;
-            #endif
+            change_value = false;
+            pre_millis = 0;
+            //initRotaries(SW_MENU, 1, 0, numItems - 1, 1);
+            
           }
-          else if (millis() - prev_millis > 1000 and (turntable_init == 1 or menuitem_1 == 1)) {
-            prev_millis = millis();
+          else if (millis() - pre_millis > 1000 and !turntable_init) {
+            pre_millis = millis();
             if (esp_now_wait.length() < 3) {esp_now_wait = esp_now_wait + ".";}
             else {esp_now_wait = "";}
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              esp_now_change = true;
-            #endif
-          }
-          if (esp_now_msg_recived == true) {
-            if (last_menu_pos_1 == 1) {
-              if(strcmp(myReceivedMessage.text, "ok_init_done") == 0) {
-                turntable_init = true;
-              }
-              #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-                esp_now_change = true;
-              #endif
+            if(strcmp(myReceivedMessage.text, "ok_init_done") == 0) {
+              turntable_init = true;
+              change_menu = true;
+              turntable_running = false;
+              change_value = false;
             }
-            //Werte zurücksetzen
-            esp_now_msg_recived = false;
-            turntable_running = false;
-            turntable_millis = 0;
-            esp_now_wait = "";
-            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
           }
         }
         if (change_value == false) {
-          if (use_turntable == 0 and getRotariesValue(SW_MENU) != menuitem_1) {
-            menuitem_1 = getRotariesValue(SW_MENU);
-            initRotaries(SW_MENU, menuitem_1, 0, 1, 1);
-          }
-          else if (getRotariesValue(SW_MENU) != menuitem_1) {
-            menuitem_1 = getRotariesValue(SW_MENU);
-            initRotaries(SW_MENU, menuitem_1, 0, menu_items_number_1 - 1, 1);
-          }
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            pos = menuitem_1;
-            if ((use_turntable == 0 and menuitem_1 == 1) or (menuitem_1 == 2 and use_turntable == 1 and turntable_init == false)) {
-              pos = menu_items_number_1 - 1;
-            }
-          #endif
-          if (menuitem_1 == menu_items_number_1 - 1 or (use_turntable == 0 and menuitem_1 == 1) or (turntable_init == false and menuitem_1 == 2)) {
-            menuitem_1 = 7;
-          }
+          pos = getRotariesValue(SW_MENU);
         }
         else {
-          switch (menuitem_1) {
+          switch (pos) {
             case 0: use_turntable = getRotariesValue(SW_MENU);
+                    if (use_turntable != use_turntable_old) {
+                      change_menu = true;
+                      use_turntable_old = use_turntable;
+                    }
                     break;
           }
         }
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-          dis.setup_turntable_menu1_2_oled(change_value, menuitems_1, menuitem_1, menu_items_number_1, last_menu_pos_1, turntable_running, esp_now_wait);
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-          dis.setup_turntable_menu1_2_tft(change_value, menuitems_1, menu_items_number_1, turntable_running);
-        #endif
-        // Menupunkt zum ändern ausgewählt
-        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_1 < menu_items_number_1 - 1  && change_value == false) {
+        dis.setup_turntable(2);
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == false) {
           while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
             delay(1);
-          }
-          last_menu_pos_1 = menuitem_1;
-          switch (menuitem_1) {
-            case 0: rotary_select = SW_MENU;
-                    initRotaries(SW_MENU, use_turntable, 0, 1, 1);
+          } 
+          switch (pos) { 
+            case 0: initRotaries(SW_MENU, use_turntable, 0, 1, 1);
                     break;
             case 1: if (turntable_init == false) {
+                      make_changes = true;
                       turntable_running = true;
-                      turntable_millis = millis();
+                      time = pre_millis= millis();
                       esp_now_msg_recived = false;
                       strcpy(myMessageToBeSent.text, "init");
                       espnow_send_data();
                     }
+                    else if (turntable_init == true) {
+                      i = 2;
+                    }
+                    break;
+            case 2: i = 3;
+                    break;
+            case 3: i = 4;
                     break;
           }
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            value_old = -1;
-          #endif
           change_value = true;
         }
         // Änderung im Menupunkt übernehmen
-        if ((digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_1 < menu_items_number_1 - 1  && change_value == true) or (turntable_running == true and change_value == true)) {
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == true) {
           while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
             delay(1);
           }
-          rotary_select = SW_MENU;
-          initRotaries(SW_MENU, menuitem_1, 0, menu_items_number_1 - 1, 1);
+          initRotaries(SW_MENU, pos, 0, numItems-1, 1);
           change_value = false;
         }
-        // Menu verlassen
-        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_1 == 7 && turntable_running == false) {
+        // Menü verlassen
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == numItems-1) {
           while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
             delay(1);
           }
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu1_oled_exit(menuitem_1);
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu1_tft_exit();
-          #endif
-          esp_now_msg_recived = false;
+          dis.setup_exit();
           delay(1000);
-          i = 0;
-        }
-      }
-      //Menu 2 (Turntable init OK)
-      while (i == 2) {
-        if (esp_now_msg_recived == true and strcmp(myReceivedMessage.text, "init_error") == 0) {
-          esp_now_msg_recived = false;
-          turntable_init = false;
-          turntable_running = false;
-          turntable_millis = 0;
-          prev_millis = 0;
-          esp_now_wait = "";
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            esp_now_wait_old = "...";
-          #endif
-        }
-        if (turntable_init == false) {
-          i = 1;
-          initRotaries(SW_MENU, 0, 0, menu_items_number_1 -1, 1);
-          esp_now_msg_recived = false;
-          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu2_1_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu2_1_tft();
-          #endif
-          break;
-        }
-        if ((digitalRead(button_stop_pin) == HIGH and turntable_running == false) or digitalRead(switch_setup_pin) == LOW) {
-          while (digitalRead(button_stop_pin) == HIGH) {
-            delay(1);
-          }
-          esp_now_msg_recived = false;
-          use_turntable = last_use_turntable;
-          rotary_select = SW_MENU;
           mode = -1;
-          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
           return;
         }
-        if (change_value == false) {
-          if (use_turntable == 0 and getRotariesValue(SW_MENU) != menuitem_2) {
-            menuitem_2 = getRotariesValue(SW_MENU);
-            initRotaries(SW_MENU, menuitem_2, 0, 1, 1);
-          }
-          else if (getRotariesValue(SW_MENU) != menuitem_2) {
-            menuitem_2 = getRotariesValue(SW_MENU);
-            initRotaries(SW_MENU, menuitem_2, 0, menu_items_number_2 - 1, 1);
-          }
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            pos = menuitem_2;
-            if ((use_turntable == 0 and menuitem_2 == 1)) {
-              pos = menu_items_number_2 -1;
-            }
-          #endif
-          if (menuitem_2 == menu_items_number_2 - 1 or (use_turntable == 0 and menuitem_2 == 1)) {
-            menuitem_2 = 7;
-          }
-        }
-        else {
-          switch (menuitem_2) {
-            case 0: use_turntable = getRotariesValue(SW_MENU);
-                    break;
-          }
-        }
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-          dis.setup_turntable_menu2_2_oled(change_value, menuitems_2, menuitem_2, menu_items_number_2, ota_update);
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-          dis.setup_turntable_menu2_2_tft(change_value, menuitems_2, menu_items_number_2, ota_update);
-        #endif
-        // Menupunkt zum ändern ausgewählt
-        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_2 < menu_items_number_2 - 1  && change_value == false) {
-          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-            delay(1);
-          }
-          last_menu_pos_2 = menuitem_2;
-          switch (menuitem_2) {
-            case 0: rotary_select = SW_MENU;
-                    initRotaries(SW_MENU, use_turntable, 0, 1, 1);
-                    break;
-            case 1: i = 3;
-                    break;
-            case 2: i = 4;
-                    break;
-            case 3: ota_update_enable = true;
-                    break;
-          }
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            value_old = -1;
-          #endif
-          change_value = true;
-          if (i == 3 or i == 4) {
-            menuitem_3 = pos = 0;
-            change_value = false;
-            #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-              dis.setup_turntable_menu2_1_oled();
-            #endif
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              dis.setup_turntable_menu2_1_tft();
-            #endif
-            break;
-          }
-        }
-        // Enable OTA update for the Turntable
-        int ota_status = 0;
-        if (ota_update_enable == true) {
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu2_3_tft();
-          #endif
-        }
-        while (ota_update_enable == true) {
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu2_4_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu2_4_tft();
-          #endif
-          esp_now_msg_recived = false;
-          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          strcpy(myMessageToBeSent.text, "enable_ota_update");
-          espnow_send_data();
-          time = millis();
-          while (!esp_now_msg_recived and millis() - time <= 16000 and strcmp(myReceivedMessage.text, "") == 0 and digitalRead(switch_setup_pin) == HIGH and digitalRead(button_stop_pin) == LOW) {
-            delay(10);
-          }
-          if (digitalRead(switch_setup_pin) == LOW or digitalRead(button_stop_pin) == HIGH) {
-            while (digitalRead(button_stop_pin) == HIGH) {
-              delay(10);
-            }
-            stop_button_used = true;
-            ota_update_enable = false;
-          }
-          if (strcmp(myReceivedMessage.text, "") != 0 and stop_button_used == false) {
-            ota_status = 1;     //Turntable has an IP adress
-            #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-              dis.setup_turntable_menu2_5_oled(myReceivedMessage.text);
-            #endif
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              dis.setup_turntable_menu2_5_tft(myReceivedMessage.text);
-            #endif
-            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-            while ((ota_status == 1 or ota_status == 2) and stop_button_used == false) {
-              delay(1000);
-              if (digitalRead(switch_setup_pin) == LOW or digitalRead(button_stop_pin) == HIGH and ota_status == 1) {
-                while (digitalRead(button_stop_pin) == HIGH) {
-                  delay(10);
-                }
-                stop_button_used = true;
-                ota_update_enable = false;
-              }
-              if (strcmp(myReceivedMessage.text, "") != 0 and strcmp(myReceivedMessage.text, "Success") != 0 and strcmp(myReceivedMessage.text, "Fail") != 0) {
-                ota_status = 2;     //OTA Update ist am laufen
-                #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-                  dis.setup_turntable_menu2_6_oled(myReceivedMessage.text, myReceivedMessage.value);
-                #endif
-                #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-                  dis.setup_turntable_menu2_6_tft(myReceivedMessage.text, myReceivedMessage.value);
-                #endif
-                if (strcmp(myReceivedMessage.text, "Success") != 0 or strcmp(myReceivedMessage.text, "Fail") != 0) {
-                  memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-                }
-              }
-              else if (strcmp(myReceivedMessage.text, "Success") == 0 or strcmp(myReceivedMessage.text, "Fail") == 0) {
-                ota_status = 3;     //OTA Update ist fertig oder hat einen Error
-              }
-            }
-            while (ota_status == 3) {
-              ota_status = 4;     //verlasse OTA
-              ota_update_enable = false;
-              i = 0;
-              int x_pos;
-              if (strcmp(myReceivedMessage.text, "Success") == 0) {
-                #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-                  dis.setup_turntable_menu2_7_oled();
-                #endif
-                #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-                  dis.setup_turntable_menu2_7_tft();
-                #endif
-                ota_done = 1;
-                #if DEBUG_HM >= 1
-                  Serial.println("OTA update finished successfully!");
-                #endif
-              } 
-              else {
-                #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-                  dis.setup_turntable_menu2_8_oled();
-                #endif
-                #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-                  dis.setup_turntable_menu2_8_tft();
-                #endif
-                #if DEBUG_HM >= 1
-                  Serial.println("There was an error during OTA update!");
-                #endif
-              }
-              memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-              delay(5000);
-            }
-          }
-          else if (ota_status == 0) {
-            ota_update_enable = false;
-            #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-              dis.setup_turntable_menu2_9_oled();
-            #endif
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              dis.setup_turntable_menu2_9_tft(1);
-            #endif
-            delay(5000);
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              dis.setup_turntable_menu2_9_tft(2);
-            #endif
-          }
-          //if (digitalRead(switch_setup_pin) == LOW or digitalRead(button_stop_pin) == HIGH) {
-          //  while (digitalRead(button_stop_pin) == HIGH) {
-          //    delay(10);
-          //  }
-          //}
-          if (ota_update_enable == false) {
-            //OTA verlassen
-            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-            esp_now_msg_recived = false;
-            strcpy(myMessageToBeSent.text, "stop_ota_update");
-            espnow_send_data();
-            time = millis();
-            while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
-              delay(10);
-            }
-            change_value = false;
-            stop_button_used = false;
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              dis.setup_turntable_menu2_9_tft(3);
-            #endif
-          }
-        }
-        // Änderung im Menupunkt übernehmen
-        if ((digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_2 < menu_items_number_2 - 1  && change_value == true)) {
-          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-            delay(1);
-          }
-          rotary_select = SW_MENU;
-          initRotaries(SW_MENU, menuitem_2, 0, menu_items_number_2 - 1, 1);
-          change_value = false;
-        }
-        // Menu verlassen
-        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_2 == 7) {
-          while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
-            delay(1);
-          }
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu2_oled_exit(menuitem_2);
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu2_tft_exit();
-          #endif
-          esp_now_msg_recived = false;
-          delay(1000);
-          i = 0;
-        }
       }
-      if (i == 3) {       //Menü Drehteller
+      //Menü Drehteller
+      if (i == 2) {
+        menuitems = {MOVE_JAR[lingo], CENTER_JAR[lingo], SPEED_INIT[lingo], SPEED_RUN[lingo], SAVE[lingo]};
+        numItems = menuitems.size();
+        initRotaries(SW_MENU, 0, 0, numItems-1, 1);
+        change_value = false;
         esp_now_msg_recived = false;
+        esp_now_wait = "";
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
         strcpy(myMessageToBeSent.text, "speed_init");
         espnow_send_data();
         turntable_millis = millis();
+        jar_center_pos = 0;
         while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false and strcmp(myReceivedMessage.text, "ok_speed_init") != 0) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
           delay(10);
         }
@@ -2621,57 +1897,37 @@ void setupDrehteller(void) {
           delay(10);
         }
         speed_run = speed_run_old = myReceivedMessage.value;
-        initRotaries(SW_MENU, menuitem_3, 0, menu_items_number_3 - 1, 1);
+        clear_tft = 1;
+
       }
-      while (i == 3) {
+      while (i == 2) {
+        //Menü verlassen wenn Drehteller init false wird.
         if (esp_now_msg_recived == true and strcmp(myReceivedMessage.text, "init_error") == 0) {
           esp_now_msg_recived = false;
           turntable_init = false;
           turntable_running = false;
           center_jar_running = false;
+          change_value = false;
           turntable_millis = 0;
-          prev_millis = 0;
           esp_now_wait = "";
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            esp_now_wait_old = "...";
-          #endif
-        }
-        if (turntable_init == false) {
           i = 1;
-          initRotaries(SW_MENU, 0, 0, menu_items_number_1 -1, 1);
-          esp_now_msg_recived = false;
-          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu3_1_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu3_1_tft();
-          #endif
-          break;
         }
+        //Abbrechen wenn Stop Taster gedrückt wird
         if (digitalRead(button_stop_pin) == HIGH and turntable_running == false) {
           while (digitalRead(button_stop_pin) == HIGH) {
             delay(1);
           }
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            value_old = -1;
-          #endif
+          pos_old = 1;
+          jar_center_pos = 0;
+          turntable_running = false;
+          center_jar_running = false;
           change_value = false;
-          rotary_select = SW_MENU;
-          initRotaries(SW_MENU, menuitem_2, 0, menu_items_number_2 - 1, 1);
           esp_now_msg_recived = false;
-          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
-          i = 2;
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu3_1_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu3_1_tft();
-          #endif
-          break;
+          change_menu = true;
+          clear_tft = 2;
+          i = 1;
         }
+        //Abbrechen wenn Kippschalter benutzt wurde
         if (digitalRead(switch_setup_pin) == LOW) {
           esp_now_msg_recived = false;
           rotary_select = SW_MENU;
@@ -2680,77 +1936,13 @@ void setupDrehteller(void) {
           memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
           return;
         }
-        if (turntable_running == true) {
-          initRotaries(SW_MENU, last_menu_pos_3, 0, menu_items_number_3 - 1, 1);                         //Wenn einer am rotary dreht wider zurücksetzen
-          if (millis() - turntable_millis > 60000 or digitalRead(button_stop_pin) == HIGH) {             //Timeaut, wenn der Befehl nicht in 60s geschaft wird oder Abbrechen wenn Stop Taste gedrückt wird
-            while (digitalRead(button_stop_pin) == HIGH) {
-              delay(1);
-            }
-            strcpy(myMessageToBeSent.text, "stop");
-            espnow_send_data();
-            esp_now_msg_recived = false;
-            change_value = false;
-            turntable_init = false;
-            turntable_running = false;
-            turntable_millis = 0;
-            prev_millis = 0;
-            esp_now_wait = "";
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              esp_now_wait_old = "...";
-            #endif
-            initRotaries(SW_MENU, 1, 0, 1, 1);
-            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              esp_now_change = true;
-            #endif
-          }
-          else if (millis() - prev_millis > 1000 and menuitem_3 == 0) {
-            prev_millis = millis();
-            if (esp_now_wait.length() < 3) {esp_now_wait = esp_now_wait + ".";}
-            else {esp_now_wait = "";}
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              esp_now_change = true;
-            #endif
-          }
-          if (esp_now_msg_recived == true) {
-            //Werte zurücksetzen
-            change_value = false;
-            esp_now_msg_recived = false;
-            turntable_running = false;
-            turntable_millis = 0;
-            esp_now_wait = "";
-            #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-              esp_now_wait_old = "...";
-              change = true;
-            #endif
-            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          }
+        if (change_value == false) {
+          pos = getRotariesValue(SW_MENU);
         }
-        if (center_jar_running == true) {
-          initRotaries(SW_MENU, jar_center_pos, 0, 1500, move_steps); //zurücksetzen wenn zu schnell am rotary gedreht wurde
-          if (millis() - turntable_millis > 3000) {   //verlassen wenn der Befehl nicht in 3sek geschafft wurde
-            //muss noch gemacht werden :-)
-          }
-          if (esp_now_msg_recived == true) {
-            //Werte zurücksetzen
-            esp_now_msg_recived = false;
-            center_jar_running = false;
-            turntable_millis = 0;
-            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          }
-        }
-        if (change_value == false and getRotariesValue(SW_MENU) != menuitem_3) {
-          menuitem_3 = getRotariesValue(SW_MENU);
-          initRotaries(SW_MENU, menuitem_3, 0, menu_items_number_3 - 1, 1);
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            pos = menuitem_3;
-          #endif
-          if (menuitem_3 == menu_items_number_3 - 1) {
-            menuitem_3 = 7;
-          }
-        }
-        else if (getRotariesValue(SW_MENU) != menuitem_3) {
-          switch (menuitem_3) {
+        else {
+          switch (pos) {
+            case 0: 
+                    break;
             case 1: jar_center_pos = getRotariesValue(SW_MENU);
                     break;
             case 2: speed_init = getRotariesValue(SW_MENU);
@@ -2759,18 +1951,54 @@ void setupDrehteller(void) {
                     break;
           }
         }
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-          dis.setup_turntable_menu3_2_oled(change_value, menuitems_3, menuitem_3, menu_items_number_3, esp_now_wait, jar_center_pos, speed_init, speed_run);
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-          dis.setup_turntable_menu3_2_tft(change_value, menuitems_3, menu_items_number_3, turntable_running, jar_center_pos, speed_init, speed_run);
-        #endif
-        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_3 < menu_items_number_3 - 1  && change_value == false) {
+        if (turntable_running == true) {
+          initRotaries(SW_MENU, 0, 0, numItems - 1, 1);                                         //Wenn einer am rotary dreht wider zurücksetzen
+          if (millis() - turntable_millis > 60000 or digitalRead(button_stop_pin) == HIGH) {    //Timeaut, wenn der Befehl nicht in 60s geschaft wird oder Abbrechen wenn Stop Taste gedrückt wird
+            while (digitalRead(button_stop_pin) == HIGH) {
+              delay(1);
+            }
+            strcpy(myMessageToBeSent.text, "stop");
+            espnow_send_data();
+            turntable_init = false;
+            turntable_running = false;
+            esp_now_wait = "";
+            change_value = false;
+            pre_millis = 0;
+            change_menu = true;
+            i = 1;
+          }
+          else if (millis() - pre_millis > 1000 and turntable_init) {
+            pre_millis = millis();
+            if (esp_now_wait.length() < 3) {esp_now_wait = esp_now_wait + ".";}
+            else {esp_now_wait = "";}
+            if(strcmp(myReceivedMessage.text, "ok_move_jar") == 0) {
+              memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+              turntable_running = false;
+              change_value = false;
+              esp_now_wait = "";
+            }
+          }
+        }
+        if (center_jar_running == true) {
+          initRotaries(SW_MENU, jar_center_pos, 0, 1500, move_steps);   //zurücksetzen wenn zu schnell am rotary gedreht wurde
+          if (millis() - turntable_millis > 3000) {                     //verlassen wenn der Befehl nicht in 3sek geschafft wurde
+            //muss noch gemacht werden :-)
+          }
+
+          if (esp_now_msg_recived == true) {
+            //Werte zurücksetzen
+            esp_now_msg_recived = false;
+            turntable_millis = 0;
+            turntable_init = false;
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          }
+        }
+        dis.setup_turntable(3);
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == false) {
           while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
             delay(1);
-          }
-          last_menu_pos_3 = menuitem_3;
-          switch (menuitem_3) {
+          } 
+          switch (pos) { 
             case 0: turntable_running = true;
                     turntable_millis = millis();
                     esp_now_msg_recived = false;
@@ -2779,20 +2007,18 @@ void setupDrehteller(void) {
                     break;
             case 1: rotary_select = SW_MENU;
                     initRotaries(SW_MENU, jar_center_pos, 0, 1500, move_steps);
+                    center_jar_running = true;
                     break;
             case 2: rotary_select = SW_MENU;
-                    initRotaries(SW_MENU, speed_init, 100, 600, 50);
+                    initRotaries(SW_MENU, speed_init, 100, 600, move_steps);
                     break;
             case 3: rotary_select = SW_MENU;
-                    initRotaries(SW_MENU, speed_run, 100, 600, 50);
+                    initRotaries(SW_MENU, speed_run, 100, 600, move_steps);
                     break;
           }
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            value_old = -1;
-          #endif
           change_value = true;
         }
-        if (menuitem_3 == 1 and change_value == true) {
+        if (center_jar_running and change_value == true) {
           if (jar_center_pos != jar_center_pos_old) {
             move_vale = 0;
             if (jar_center_pos > jar_center_pos_old) {move_vale = 2 * move_steps;}
@@ -2809,16 +2035,26 @@ void setupDrehteller(void) {
           }
         }
         // Änderung im Menupunkt übernehmen
-        if ((digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_3 < menu_items_number_3 - 1  && change_value == true)) {
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == true) {
           while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
             delay(1);
           }
-          rotary_select = SW_MENU;
-          initRotaries(SW_MENU, menuitem_3, 0, menu_items_number_3 - 1, 1);
+          initRotaries(SW_MENU, pos, 0, numItems-1, 1);
           change_value = false;
+          if (center_jar_running == 1) {
+            clear_tft = 2;
+            change_menu = true;
+            center_jar_running = false;
+            esp_now_wait = "";
+            esp_now_msg_recived = false;
+            turntable_millis = 0;
+            turntable_init = false;
+            memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+            i = 1;
+          }
         }
-        // Menu verlassen
-        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_3 == 7) {
+        // Menü verlassen
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == numItems-1) {
           while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
             delay(1);
           }
@@ -2826,7 +2062,6 @@ void setupDrehteller(void) {
             strcpy(myMessageToBeSent.text, "speed_init_save");
             myMessageToBeSent.value = speed_init;
             espnow_send_data();
-            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
             turntable_millis = millis();
             esp_now_msg_recived = false;
             while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
@@ -2837,7 +2072,6 @@ void setupDrehteller(void) {
             strcpy(myMessageToBeSent.text, "speed_run_save");
             myMessageToBeSent.value = speed_run;
             espnow_send_data();
-            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
             turntable_millis = millis();
             esp_now_msg_recived = false;
             while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
@@ -2849,35 +2083,28 @@ void setupDrehteller(void) {
             strcpy(myMessageToBeSent.text, "pos_jar_steps_save");
             myMessageToBeSent.value = 2 * jar_center_pos;
             espnow_send_data();
-            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
             turntable_millis = millis();
             esp_now_msg_recived = false;
+            jar_center_pos = 0;
             while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
               delay(10);
             }
           }
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu3_oled_exit(menuitem_3);
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu3_tft_exit();
-          #endif
-          esp_now_msg_recived = false;
-          jar_center_pos = 0;
-          jar_center_pos_old = 0;
+          dis.setup_exit();
           delay(1000);
-          initRotaries(SW_MENU, 1, 0, menu_items_number_2 -1, 1);
-          i = 2;
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu3_1_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu3_1_tft();
-          #endif
+          pos_old = 1;
+          esp_now_msg_recived = false;
+          change_menu = true;
+          clear_tft = 2;
+          i = 1;
         }
       }
-      if (i == 4) {       //Menü Setup Tropfschutz
-        setRotariesValue(SW_MENU, 0);       //Workaround --> noch suchen warum der Rotary Wert auf 2 ist
+      //Menü Tropfschutz
+      if (i == 3) {
+        menuitems = {OPEN_DRIPPROTECTION[lingo], CLOSE_DRIPPROTECTION[lingo], SPEED_DRIPPROTECTION[lingo], WAIT_TO_CLOSE_DP[lingo], DP_MIN_ANGLE[lingo], DP_MAX_ANGLE[lingo], SAVE[lingo]};
+        numItems = menuitems.size();
+        change_value = false;
+        initRotaries(SW_MENU, 0, 0, numItems-1, 1);
         ts_open_running = false;
         ts_close_running = false;
         ts_angle_running = false;
@@ -2916,32 +2143,30 @@ void setupDrehteller(void) {
         while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false and strcmp(myReceivedMessage.text, "ok_ts_speed") != 0) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
           delay(10);
         }
+        clear_tft = 1;
         ts_speed = ts_speed_old = myReceivedMessage.value;
         esp_now_msg_recived = false;
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-        //initRotaries(SW_MENU, menuitem_4, 0, MenuepunkteAnzahl_4 - 1, 1);
       }
-      while (i == 4) {
-        if (digitalRead(button_stop_pin)) {
+      while (i == 3) {
+        //Abbrechen wenn Stop Taster gedrückt wird
+        if (digitalRead(button_stop_pin) == HIGH) {
           while (digitalRead(button_stop_pin) == HIGH) {
             delay(1);
           }
-          change_value = false;
-          rotary_select = SW_MENU;
-          initRotaries(SW_MENU, menuitem_2, 0, menu_items_number_2 - 1, 1);
+          pos_old = 2;
+          ts_angle_min = ts_angle_min_old;
+          ts_angle_max = ts_angle_max_old;
+          ts_waittime = ts_waittime_old;
+          ts_speed = ts_speed_old;
           esp_now_msg_recived = false;
-          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-          memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
-          i = 2;
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu4_1_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            value_old = -1;
-            dis.setup_turntable_menu4_1_tft();
-          #endif
+          change_value = false;
+          change_menu = true;
+          clear_tft = 2;
+          i = 1;
           break;
         }
+        //Abbrechen wenn Kippschalter benutzt wurde
         if (digitalRead(switch_setup_pin) == LOW) {
           esp_now_msg_recived = false;
           rotary_select = SW_MENU;
@@ -2951,9 +2176,9 @@ void setupDrehteller(void) {
           return;
         }
         if (ts_open_running == true or ts_close_running == true or ts_angle_running == true) { //zurücksetzen wenn zu schnell am rotary gedreht wurde
-          if (ts_open_running == true or ts_close_running) {initRotaries(SW_MENU, menuitem_4, 0, menu_items_number_4 - 1, 1);}
-          else if (ts_angle_running == true and menuitem_4 == 4) {initRotaries(SW_MENU, ts_angle_min, 0, ts_angle_max, 5);}
-          else if (ts_angle_running == true and menuitem_4 == 5) {initRotaries(SW_MENU, ts_angle_max, ts_angle_min, 180, 5);}
+          if (ts_open_running == true or ts_close_running) {initRotaries(SW_MENU, pos, 0, numItems - 1, 1);}
+          else if (ts_angle_running == true and pos == 4) {initRotaries(SW_MENU, ts_angle_min, 0, ts_angle_max, 5);}
+          else if (ts_angle_running == true and pos == 5) {initRotaries(SW_MENU, ts_angle_max, ts_angle_min, 180, 5);}
           if (millis() - turntable_millis > 3000) {   //verlassen wenn der Befehl nicht in 3sek geschafft wurde
             //muss noch gemacht werden :-)
           }
@@ -2968,18 +2193,15 @@ void setupDrehteller(void) {
             memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
           }
         }
-        if (change_value == false and getRotariesValue(SW_MENU) != menuitem_4) {
-          menuitem_4 = getRotariesValue(SW_MENU);
-          initRotaries(SW_MENU, menuitem_4, 0, menu_items_number_4 - 1, 1);
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            pos = menuitem_4;
-          #endif
-          if (menuitem_4 == menu_items_number_4 - 1) {
-            menuitem_4 = 7;
-          }
+        if (change_value == false) {
+          pos = getRotariesValue(SW_MENU);
         }
-        else if (getRotariesValue(SW_MENU) != menuitem_4) {
-          switch (menuitem_4) {
+        else {
+          switch (pos) {
+            case 0: 
+                    break;
+            case 1: jar_center_pos = getRotariesValue(SW_MENU);
+                    break;
             case 2:ts_speed = getRotariesValue(SW_MENU);
                     break;
             case 3: ts_waittime = getRotariesValue(SW_MENU);
@@ -2990,18 +2212,12 @@ void setupDrehteller(void) {
                     break;
           }
         }
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-          dis.setup_turntable_menu4_2_oled(change_value, menuitems_4, menuitem_4, menu_items_number_4, ts_speed, ts_waittime, ts_angle_min, ts_angle_max);
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-          dis.setup_turntable_menu4_2_tft(change_value, menuitems_4, menu_items_number_4, ts_speed, ts_waittime, ts_angle_min, ts_angle_max);
-        #endif
-        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_4 < menu_items_number_4 - 1  && change_value == false) {
+        dis.setup_turntable(4);
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == false) {
           while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
             delay(1);
-          }
-          last_menu_pos_4 = menuitem_4;
-          switch (menuitem_4) {
+          } 
+          switch (pos) { 
             case 0: ts_open_running = true;
                     turntable_millis = millis();
                     esp_now_msg_recived = false;
@@ -3027,35 +2243,21 @@ void setupDrehteller(void) {
                     initRotaries(SW_MENU, ts_angle_max, ts_angle_min, 180, 5);
                     break;
           }
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            value_old = -1;
-          #endif
           change_value = true;
         }
-        if ((menuitem_4 == 4 or menuitem_4 == 5) and change_value == true) {
-          move_vale = -1;
-          if (menuitem_4 == 4 and ts_angle_min != ts_angle_min_old) {move_vale = ts_angle_min; ts_angle_min_old = ts_angle_min;}
-          if (menuitem_4 == 5 and ts_angle_max != ts_angle_max_old) {move_vale = ts_angle_max; ts_angle_max_old = ts_angle_max;}
-          if (move_vale >= 0) {
-            ts_angle_running = true;
-            esp_now_msg_recived = false;
-            turntable_millis = millis();
-            strcpy(myMessageToBeSent.text, "move_dp");
-            myMessageToBeSent.value = move_vale;
-            espnow_send_data();
-          }
-        }
         // Änderung im Menupunkt übernehmen
-        if ((digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_4 < menu_items_number_4 - 1  && change_value == true)) {
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos < numItems-1  && change_value == true) {
           while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
             delay(1);
           }
-          rotary_select = SW_MENU;
-          initRotaries(SW_MENU, menuitem_4, 0, menu_items_number_4 - 1, 1);
+          initRotaries(SW_MENU, pos, 0, numItems-1, 1);
           change_value = false;
+          esp_now_wait = "";
+          esp_now_msg_recived = false;
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
         }
-        // Menu verlassen
-        if (digitalRead(SELECT_SW) == SELECT_PEGEL && menuitem_4 == 7) {
+        // Menü verlassen
+        if (digitalRead(SELECT_SW) == SELECT_PEGEL && pos == numItems-1) {
           while(digitalRead(SELECT_SW) == SELECT_PEGEL) {
             delay(1);
           }
@@ -3063,7 +2265,6 @@ void setupDrehteller(void) {
             strcpy(myMessageToBeSent.text, "ts_angle_min_save");
             myMessageToBeSent.value = ts_angle_min;
             espnow_send_data();
-            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
             turntable_millis = millis();
             esp_now_msg_recived = false;
             while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
@@ -3074,7 +2275,6 @@ void setupDrehteller(void) {
             strcpy(myMessageToBeSent.text, "ts_angle_max_save");
             myMessageToBeSent.value = ts_angle_max;
             espnow_send_data();
-            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
             turntable_millis = millis();
             esp_now_msg_recived = false;
             while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
@@ -3085,7 +2285,6 @@ void setupDrehteller(void) {
             strcpy(myMessageToBeSent.text, "ts_speed_save");
             myMessageToBeSent.value = ts_speed;
             espnow_send_data();
-            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
             turntable_millis = millis();
             esp_now_msg_recived = false;
             while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
@@ -3096,88 +2295,178 @@ void setupDrehteller(void) {
             strcpy(myMessageToBeSent.text, "ts_waittime_save");
             myMessageToBeSent.value = ts_waittime;
             espnow_send_data();
-            //noch überlegen was gemacht werden soll, wenn der Wert nicht Gespeichert wurde
             turntable_millis = millis();
             esp_now_msg_recived = false;
             while (millis() - turntable_millis < 3000 and esp_now_msg_recived == false) {  //brechce ab wenn in 3 sek keine rückmeldung kommt
               delay(10);
             }
           }
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu4_oled_exit(menuitem_4);
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu4_tft_exit();
-          #endif
+          dis.setup_exit();
+          delay(1000);
+          pos_old = 2;
           esp_now_msg_recived = false;
+          change_menu = true;
           ts_angle_running = false;
           ts_close_running = false;
           ts_open_running = false;
-          delay(1000);
-          initRotaries(SW_MENU, 2, 0, menu_items_number_2 -1, 1);
-          i = 2;
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu4_1_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.setup_turntable_menu4_1_tft();
-          #endif
+          clear_tft = 2;
+          i = 1;
+        }
+      }
+      //Menü OTA Update aktivieren
+      if (i == 4) {
+        //ota_status: 0 --> enable ota update
+        //            1 --> Turntable has an IP address
+        //            2 --> Turntable was not enable to get an IP address
+        //            3 --> OTA update started
+        //            4 --> OTA update fail
+        //            5 --> OTA update success
+        ota_status = 0;
+        memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
+        esp_now_msg_recived = false;
+        strcpy(myMessageToBeSent.text, "enable_ota_update");
+        espnow_send_data();
+        time = millis();
+        dis.setup_turntable(5);
+        // Turntable try to get an IP address
+        while (ota_status == 0 and millis() - time <= 5000 ) { //war mal 16000
+          if (strcmp(myReceivedMessage.text, "") != 0) {
+            strcpy(myReceivedMessage_text, myReceivedMessage.text);
+            ota_status = 1;
+            delay(10);
+          }
+          if (ota_status == 0 and millis() - time >= 5000) { //war mal 16000
+            ota_status = 2;
+          }
+        }
+        dis.setup_turntable(5);
+        //Disable WiFi
+        if (ota_status == 2) {
+          strcpy(myMessageToBeSent.text, "stop_ota_update");
+          espnow_send_data();
+          time = millis();
+          while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+            delay(10);
+          }
+          delay(3000);
+          pos_old = 3;
+          esp_now_msg_recived = false;
+          change_value = false;
+          change_menu = true;
+          i = 1;
+        }
+      }
+      while (i == 4) {
+        //Abbrechen wenn Stop gedrückt wird
+        if (digitalRead(button_stop_pin) == HIGH) {
+          while (digitalRead(button_stop_pin) == HIGH) {
+            delay(1);
+          }
+          strcpy(myMessageToBeSent.text, "stop_ota_update");
+          espnow_send_data();
+          time = millis();
+          while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+            delay(10);
+          }
+          pos_old = 3;
+          esp_now_msg_recived = false;
+          change_value = false;
+          change_menu = true;
+          i = 1;
+          break;
+        }
+        //Abbrechen wenn Kippschalter benutzt wurde
+        if (digitalRead(switch_setup_pin) == LOW) {
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          strcpy(myMessageToBeSent.text, "stop_ota_update");
+          espnow_send_data();
+          time = millis();
+          while (!esp_now_msg_recived and millis() - time <= 1000 and strcmp(myReceivedMessage.text, "") == 0) {
+            delay(10);
+          }
+          esp_now_msg_recived = false;
+          rotary_select = SW_MENU;
+          mode = -1;
+          return;
+        }
+        //OTA Update
+        if (ota_status != 3 and strcmp(myReceivedMessage.text, "") != 0 and strcmp(myReceivedMessage.text, "OTAStart") != 0) {
+          dis.setup_turntable(5);
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+        }
+        if (ota_status == 1 and strcmp(myReceivedMessage.text, "") != 0 and strcmp(myReceivedMessage.text, "Success") != 0 and strcmp(myReceivedMessage.text, "Fail") != 0) {
+          ota_status = 3;
+          clear_tft = 1;
+        }
+        while (ota_status == 3) {
+          if (strcmp(myReceivedMessage.text, "") != 0  and strcmp(myReceivedMessage.text, "Success") != 0 and strcmp(myReceivedMessage.text, "Fail") != 0 and strcmp(myReceivedMessage.text, "OTAStart") != 0) {
+            strcpy(myReceivedMessage_text, myReceivedMessage.text);
+            myReceivedMessage_value = myReceivedMessage.value;
+            dis.setup_turntable(5);
+          }
+          if (strcmp(myReceivedMessage.text, "Fail") == 0) {
+            ota_status = 4;
+          }
+          if (strcmp(myReceivedMessage.text, "Success") == 0) {
+            ota_status = 5;
+          }
+        }
+        if (ota_status == 4 or ota_status == 5) {
+          dis.setup_turntable(5);
+          delay(3000);
+          memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
+          esp_now_msg_recived = false;
+          rotary_select = SW_MENU;
+          mode = -1;
+          return;
         }
       }
     }
-    mode = -1;
-    rotary_select = SW_MENU;
-    memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
-    memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
   #endif
 }
 
 void processSetup(void) {
   int x_pos;
-  int MenuepunkteAnzahl = 11;
-  int menuitem_old = -1;
-  if (ina219_installed) {MenuepunkteAnzahl++;}
-  if (DREHTELLER) {MenuepunkteAnzahl += 2;}
-  else if (OTA) {MenuepunkteAnzahl++;}
-  int posmenu[MenuepunkteAnzahl];
-  const char *menuepunkte[MenuepunkteAnzahl] = {LANGUAGE1[lingo], TAREVALUES[lingo], CALIBRATION[lingo], FILL_QUANTITY[lingo], AUTOMATIC[lingo], SERVOSETTINGS[lingo], PARAMETER[lingo], COUNTER[lingo], COUNTER_TRIP[lingo], ABOUT[lingo], CLEAR_PREFS[lingo]};
+  menuitem_old = -1;
+  size_t last;
+  menuitems = {
+    LANGUAGE1[lingo], TAREVALUES[lingo], SCALE[lingo], FILL_QUANTITY[lingo], AUTOMATIC[lingo], SERVOSETTINGS[lingo], PARAMETER[lingo],
+    COUNTER[lingo], COUNTER_TRIP[lingo], ABOUT[lingo], CLEAR_PREFS[lingo]
+  };
   if (ina219_installed) {
-    int offset = 0;
-    if (DREHTELLER) {offset = 2;}
-    else if (OTA) {offset = 1;}
-    menuepunkte[MenuepunkteAnzahl - 1 - offset] = menuepunkte[MenuepunkteAnzahl - 2 - offset];    //Clear Pref eins nach hinten schieben
-    menuepunkte[MenuepunkteAnzahl - 2 - offset] = menuepunkte[MenuepunkteAnzahl - 3 - offset];    //About eins nach hinten schieben
-    menuepunkte[MenuepunkteAnzahl - 3 - offset] = INA219_SETUP[lingo];
+    last = menuitems.size() - 2;
+    menuitems.insert(menuitems.begin() + last, INA219_SETUP[lingo]);
   }
   if (DREHTELLER) {
-    menuepunkte[MenuepunkteAnzahl - 1] = menuepunkte[MenuepunkteAnzahl - 3];    //Clear Pref zwei nach hinten schieben
-    menuepunkte[MenuepunkteAnzahl - 2] = menuepunkte[MenuepunkteAnzahl - 4];    //About eins nach hinten schieben
-    menuepunkte[MenuepunkteAnzahl - 4] = TURNTABLE[lingo];
-    menuepunkte[MenuepunkteAnzahl - 3] = WIFI[lingo];
+    last = menuitems.size() - 2;
+    menuitems.insert(menuitems.begin() + last, TURNTABLE[lingo]);
+    menuitems.insert(menuitems.begin() + last, WIFI[lingo]);
   }
   else if (OTA) {
-    menuepunkte[MenuepunkteAnzahl - 1] = menuepunkte[MenuepunkteAnzahl - 2];    //Clear Pref eins nach hinten schieben
-    menuepunkte[MenuepunkteAnzahl - 2] = menuepunkte[MenuepunkteAnzahl - 3];    //About eins nach hinten schieben
-    menuepunkte[MenuepunkteAnzahl - 3] = WIFI[lingo];
+    last = menuitems.size() - 2;
+    menuitems.insert(menuitems.begin() + last, WIFI[lingo]);
   }
+  numItems = menuitems.size();
+  posmenu.resize(numItems);
   mode = MODE_SETUP;
   angle = angle_min;              // Hahn schliessen
   servo_enabled = 0;              // Servo-Betrieb aus
-  SERVO_WRITE(angle);
+  servo.write(squee_tap_left ? 180 - angle : angle);
   rotary_select = SW_MENU;
-  initRotaries(SW_MENU, lastpos, -1, MenuepunkteAnzahl, -1);
+  initRotaries(SW_MENU, lastpos, -1, numItems, -1);
   while (mode == MODE_SETUP and (digitalRead(switch_setup_pin)) == HIGH) {
     if (rotaries[SW_MENU].Value < 0) {
-      rotaries[SW_MENU].Value = (MenuepunkteAnzahl * ROTARY_SCALE) - 1;
+      rotaries[SW_MENU].Value = (numItems * rotary_scale) - 1;
     }
-    else if (rotaries[SW_MENU].Value > (MenuepunkteAnzahl * ROTARY_SCALE) - 1) {
+    else if (rotaries[SW_MENU].Value > (numItems * rotary_scale) - 1) {
       rotaries[SW_MENU].Value = 0;
     }
-    int menuitem = getRotariesValue(SW_MENU) % MenuepunkteAnzahl;
-    for (i = 0; i < MenuepunkteAnzahl; i++) {
-      posmenu[i] = (menuitem + i) % MenuepunkteAnzahl;
+    menuitem = getRotariesValue(SW_MENU) % numItems;
+    for (i = 0; i < numItems; i++) {
+      posmenu[i] = (menuitem + i) % numItems;
     }
-    dis.process_setup(menuepunkte, posmenu, MenuepunkteAnzahl, menuitem, menuitem_old);
+    dis.process_setup();
     menuitem_old = menuitem;
     lastpos = menuitem;
     if (digitalRead(SELECT_SW) == SELECT_PEGEL) {
@@ -3189,22 +2478,22 @@ void processSetup(void) {
       Serial.println(menuitem);
     #endif
       lastpos = menuitem;
-      if (menuepunkte[menuitem] == TAREVALUES[lingo])        setupTare();              // Tara 
-      if (menuepunkte[menuitem] == CALIBRATION[lingo])       setupCalibration();       // Kalibrieren 
-      if (menuepunkte[menuitem] == FILL_QUANTITY[lingo])     setupFuellmenge();        // Füllmenge 
-      if (menuepunkte[menuitem] == AUTOMATIC[lingo])         setupAutomatik();         // Autostart/Autokorrektur konfigurieren 
-      if (menuepunkte[menuitem] == SERVOSETTINGS[lingo])     setupServoWinkel();       // Servostellungen Minimum, Maximum und Feindosierung
-      if (menuepunkte[menuitem] == PARAMETER[lingo])         setupParameter();         // Sonstige Einstellungen
-      if (menuepunkte[menuitem] == COUNTER[lingo])           setupCounter();           // Zählwerk
-      if (menuepunkte[menuitem] == COUNTER_TRIP[lingo])      setupTripCounter();       // Zählwerk Trip
-      if (menuepunkte[menuitem] == INA219_SETUP[lingo])      setupINA219();            // INA219 Setup
-      if (menuepunkte[menuitem] == TURNTABLE[lingo])         setupDrehteller();        // Turntable Setup
-      if (menuepunkte[menuitem] == LANGUAGE1[lingo])         setupLanguage();          // Language setup
-      if (menuepunkte[menuitem] == ABOUT[lingo])             setupAbout();             // About setup
-      if (menuepunkte[menuitem] == WIFI[lingo])              setupWiFi();              // Setup WiFi
-      setPreferences();
-      if (menuepunkte[menuitem] == CLEAR_PREFS[lingo])       setupClearPrefs();        // EEPROM löschen
-      initRotaries(SW_MENU,lastpos, 0,255, 1);                                         // Menu-Parameter könnten verstellt worden sein
+      if (menuitems[menuitem] == TAREVALUES[lingo])        setupTare();              // Tara 
+      if (menuitems[menuitem] == SCALE[lingo])             setupScale();             // Waage 
+      if (menuitems[menuitem] == FILL_QUANTITY[lingo])     setupFuellmenge();        // Füllmenge 
+      if (menuitems[menuitem] == AUTOMATIC[lingo])         setupAutomatik();         // Autostart/Autokorrektur konfigurieren 
+      if (menuitems[menuitem] == SERVOSETTINGS[lingo])     setupServoWinkel();       // Servostellungen Minimum, Maximum und Feindosierung
+      if (menuitems[menuitem] == PARAMETER[lingo])         setupParameter();         // Sonstige Einstellungen
+      if (menuitems[menuitem] == COUNTER[lingo])           setupCounter();           // Zählwerk
+      if (menuitems[menuitem] == COUNTER_TRIP[lingo])      setupTripCounter();       // Zählwerk Trip
+      if (menuitems[menuitem] == INA219_SETUP[lingo])      setupINA219();            // INA219 Setup
+      if (menuitems[menuitem] == TURNTABLE[lingo])         setupDrehteller();        // Turntable Setup
+      if (menuitems[menuitem] == LANGUAGE1[lingo])         setupLanguage();          // Language setup
+      if (menuitems[menuitem] == ABOUT[lingo])             setupAbout();             // About setup
+      if (menuitems[menuitem] == WIFI[lingo])              setupWiFi();              // Setup WiFi
+      pref.setPreferences();
+      if (menuitems[menuitem] == CLEAR_PREFS[lingo])       setupClearPrefs();        // EEPROM löschen
+      initRotaries(SW_MENU,lastpos, 0,255, 1);                                       // Menu-Parameter könnten verstellt worden sein
     }
     //das wird noch in ein menü verschoben
     #if OTA == 1
@@ -3219,19 +2508,19 @@ void processSetup(void) {
 
 void processAutomatic(void) {
   int force_servo_active  = 0;
-  boolean full = false;
+  full = false;
   static float weight_old2;        // Gewicht des vorhergehenden Durchlaufs A.P.
   static int weight_before;        // Gewicht des vorher gefüllten Glases
   static int collector_num = 5;    // Anzahl identischer Messungen für Nachtropfen
   int loop1 = 3;                   // anzahl alle wieviel Durchgänge die auto Servo einstellung gemacht werden soll A.P.
-  int y_offset_ina = 0;
+  y_offset_ina = 0;
   #if DREHTELLER == 1
     unsigned long time;
   #endif
   if (mode != MODE_AUTOMATIK) {
     angle = angle_min;              // Hahn schliessen
     servo_enabled = 0;              // Servo-Betrieb aus
-    SERVO_WRITE(angle);
+    servo.write(squee_tap_left ? 180 - angle : angle);
     auto_enabled = 0;               // automatische Füllung starten
     tare_jar = 0;
     tare_old_automatic = -999;
@@ -3242,6 +2531,7 @@ void processAutomatic(void) {
     drip_prodection = true;
     weight_before = glaeser[fquantity_index].Gewicht + correction;
     stop_wait_befor_fill = 0;
+    pos_old = -1;
     #if DREHTELLER == 1
       turntable_moving = false;
       turntable_jar_full_flag = false;
@@ -3267,13 +2557,7 @@ void processAutomatic(void) {
         #if ESP_NOW_DEBUG  >= 1
           Serial.println("Use turntable");
         #endif
-        //Clear Display
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-          dis.process_automatic_clear_oled();
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-          dis.process_automatic_clear_tft();
-        #endif
+        dis.process_automatic(1); //clear display
         turntable_init = false;
         esp_now_msg_recived = false;
         memset(&myReceivedMessage, 0, sizeof(myReceivedMessage));
@@ -3291,12 +2575,7 @@ void processAutomatic(void) {
         }
         else {
           esp_now_msg_recived = false;
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.process_automatic_connection_failed_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.process_automatic_connection_failed_tft();
-          #endif
+          dis.process_automatic(2); //connection failed
           while (digitalRead(switch_betrieb_pin) == HIGH) {
             if (digitalRead(switch_betrieb_pin) == HIGH) {delay(10);}
           }
@@ -3304,12 +2583,7 @@ void processAutomatic(void) {
           return;
         }
         if (turntable_init == false) {
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.process_automatic_init_turntable_nok_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.process_automatic_init_turntable_nok_tft();
-          #endif
+          dis.process_automatic(3); //init turntable nok
           esp_now_msg_recived = false;
           while (digitalRead(switch_betrieb_pin) == HIGH and esp_now_msg_recived == false) {
             if (digitalRead(outputSW) == LOW) {
@@ -3349,12 +2623,7 @@ void processAutomatic(void) {
           waittime_close_dp = myReceivedMessage.value;
         }
         if (waittime_close_dp <= 0) {
-          #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-            dis.process_automatic_read_time_close_tripprodection_failed_oled();
-          #endif
-          #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-            dis.process_automatic_read_time_close_tripprodection_failed_tft();
-          #endif
+          dis.process_automatic(4); //close dropprotection
           while (digitalRead(switch_betrieb_pin) == HIGH) {
             if (digitalRead(switch_betrieb_pin) == HIGH) {delay(10);}
           }
@@ -3364,7 +2633,7 @@ void processAutomatic(void) {
         memset(&myMessageToBeSent, 0, sizeof(myMessageToBeSent));
       }
     #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
+    //#if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
       if (current_servo > 0) {
         no_ina = true;
       }
@@ -3377,15 +2646,14 @@ void processAutomatic(void) {
       correction_old = -99999;
       autocorrection_gr_old = -99999;
       angle_min_old = -1;
-      pos_old = -1;
       angle_ist_old = -1;
       servo_enabled_old = -1;
       auto_enabled_old = -1;
       weight_old = -9999999;
       intWeight_old = -1;
       y_pos_weight = false;
-      dis.process_automatic_init_screen_tft(1);
-    #endif
+      dis.process_automatic(8);
+    //#endif
     mode = MODE_AUTOMATIK;
   }
   pos = getRotariesValue(SW_WINKEL);
@@ -3416,11 +2684,11 @@ void processAutomatic(void) {
     }
     auto_enabled    = 1;                                // automatisches Füllen aktivieren
     rotary_select = SW_WINKEL;                          // falls während der Parameter-Änderung auf Start gedrückt wurde    
-    setPreferences();                                   // falls Parameter über den Rotary verändert wurden
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
+    pref.setPreferences();                                   // falls Parameter über den Rotary verändert wurden
+    //#if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
       jar_old = -1;                                     // Glas Typ Farbe zurücksetzen fals markiert ist
       correction_old = -99999;                          // Korrektur Farbe zurücksetzen fals markiert ist
-    #endif
+    //#endif
   }
   if (digitalRead(button_stop_pin) == HIGH or stop_wait_befor_fill == 1) {
     while(digitalRead(button_stop_pin) == HIGH) {
@@ -3437,11 +2705,11 @@ void processAutomatic(void) {
         if (drip_prodection == false) {
           stop_button_close_dp = true;
         }
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
+        //#if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
           //TFT Display update erzwingen
           jar_on_scale = false;
           weight_old = -999999;
-        #endif
+        //#endif
       }
     #endif
   }
@@ -3470,12 +2738,7 @@ void processAutomatic(void) {
   // Automatik ein, leeres Glas aufgesetzt, Servo aus -> Glas füllen
   if (auto_enabled == 1 && abs(weight) <= jartolerance && servo_enabled == 0 and turntable_ok == true and stop_wait_befor_fill == 0 and stop_button_close_dp == 0){
     rotary_select = SW_WINKEL;     // falls während der Parameter-Änderung ein Glas aufgesetzt wird
-    #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999 
-      dis.process_automatic_start_oled();
-    #endif
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.process_automatic_start_tft();
-    #endif
+    dis.process_automatic(5); //Start
     // A.P. kurz warten und über 5 Messungen prüfen ob das Gewicht nicht nur eine zufällige Schwankung war 
     int gewicht_Mittel = 0;
     for (int i = 0; i < 5; i++){                    //R.R  hier sollte man vileich noch prüfen ob ein gemessener Wert nicht ein Ausreisser war. Sonst wird das tara verfälscht.
@@ -3492,9 +2755,9 @@ void processAutomatic(void) {
         weight = int(SCALE_GETUNITS(SCALE_READS)) - tare;  // A.P.
       }
       tare_jar = weight;
-      #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-        dis.process_automatic_set_tare_jar_tft();
-      #endif
+      //#if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
+        dis.process_automatic(9);
+      //#endif
       #if DEBUG_HM  >= 1
         Serial.print(" weight: ");                Serial.print(weight);
         Serial.print(" weight_before: ");         Serial.print(weight_before);
@@ -3503,12 +2766,7 @@ void processAutomatic(void) {
         Serial.print(" autocorrection_gr: ");     Serial.println(autocorrection_gr);
       #endif
       if (wait_befor_fill == 1 and stop_wait_befor_fill == 0) {   
-        #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-          dis.process_automatic_wait_befor_fill_oled();
-        #endif
-        #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-          dis.process_automatic_wait_befor_fill_tft();
-        #endif
+        dis.process_automatic(6); //wait befor fill
         buzzer(BUZZER_SHORT);
         while (digitalRead(button_start_pin) == LOW and digitalRead(button_stop_pin) == LOW and servo_enabled == 0 and stop_wait_befor_fill == 0 and digitalRead(switch_betrieb_pin) == HIGH) {
           delay(1);
@@ -3656,7 +2914,7 @@ void processAutomatic(void) {
       angle      = angle_min + offset_angle;
     }
   }
-  SERVO_WRITE(angle);
+  servo.write(squee_tap_left ? 180 - angle : angle);
   #if DEBUG_HM >= 4
     Serial.print("Automatic:");  
     Serial.print(" weight: ");             Serial.print(weight);
@@ -3674,12 +2932,13 @@ void processAutomatic(void) {
   if (ina219_installed and (current_servo > 0 or show_current == 1)) {
     y_offset_ina = 4;
   }
-  #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-    dis.process_automatic_main_oled(rotary_select, SW_KORREKTUR, SW_FLUSS, SW_MENU, full, y_offset_ina);
-  #endif
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    dis.process_automatic_main_tft(rotary_select, SW_KORREKTUR, SW_FLUSS, SW_MENU);
-  #endif
+  //#if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
+  //  dis.process_automatic_main_oled(rotary_select, SW_KORREKTUR, SW_FLUSS, SW_MENU, full, y_offset_ina);
+  //#endif
+  //#if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
+  //  dis.process_automatic_main_tft(rotary_select, SW_KORREKTUR, SW_FLUSS, SW_MENU);
+  //#endif
+  dis.process_automatic(7); //Main
   //Turntable
   #if DREHTELLER == 1
     if (use_turntable == 1 and stop_button_used == true and mode == MODE_AUTOMATIK) {
@@ -3844,7 +3103,7 @@ void processAutomatic(void) {
     if (servo.read() <= angle_min  + offset_angle and offset_angle < 3) {
       while(offset_angle < 3 and current_servo < current_mA) {
         offset_angle = offset_angle + 1;
-        SERVO_WRITE(angle_min + offset_angle);
+        servo.write(squee_tap_left ? 180 - angle_min + offset_angle : angle_min + offset_angle);
         current_mA = GetCurrent(10);
         delay(1000);  //really a delay in the while. next code to fix :-)
       }
@@ -3853,7 +3112,7 @@ void processAutomatic(void) {
     i = 0;
     inawatchdog = 1;
   }
-  setPreferences();
+  pref.setPreferences();
 }
 
 void processManualmode(void) {
@@ -3863,13 +3122,11 @@ void processManualmode(void) {
     mode = MODE_HANDBETRIEB;
     angle = angle_min;          // Hahn schliessen
     servo_enabled = 0;              // Servo-Betrieb aus
-    SERVO_WRITE(angle);
+    servo.write(squee_tap_left ? 180 - angle : angle);
     rotary_select = SW_WINKEL;
     tare = 0;
     offset_angle = 0;            // Offset vom Winkel wird auf 0 gestellt
-    #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-      dis.process_manualmode_tft(1);
-    #endif
+    draw_frame = true;
   }
   pos = getRotariesValue(SW_WINKEL);
   weight = SCALE_GETUNITS(SCALE_READS) - tare;
@@ -3889,7 +3146,7 @@ void processManualmode(void) {
     angle = angle_min + offset_angle;
   }
   angle = constrain(angle, angle_min + offset_angle, angle_max[fullmode-1]);
-  SERVO_WRITE(angle);
+  servo.write(squee_tap_left ? 180 - angle : angle);
   if (ina219_installed and (current_servo > 0 or show_current == 1)) {
     y_offset = 4;
   }
@@ -3899,12 +3156,7 @@ void processManualmode(void) {
     Serial.print(" angle ");       Serial.print(angle);
     Serial.print(" servo_enabled "); Serial.println(servo_enabled);
   #endif
-  #if DISPLAY_TYPE == 991 or DISPLAY_TYPE == 992 or DISPLAY_TYPE == 999
-    dis.process_manualmode_oled();
-  #endif
-  #if DISPLAY_TYPE == 993 or DISPLAY_TYPE == 999
-    dis.process_manualmode_tft(2);
-  #endif
+  dis.process_manualmode();
   if (alarm_overcurrent) {i = 1;}
   while (i > 0) {
     inawatchdog = 0;                    //schalte die kontiunirliche INA Messung aus
@@ -3912,7 +3164,7 @@ void processManualmode(void) {
     if (servo.read() <= angle_min  + offset_angle and offset_angle < 3) {
       while(offset_angle < 3 and current_servo < current_mA) {
         offset_angle = offset_angle + 1;
-        SERVO_WRITE(angle_min + offset_angle);
+        servo.write(squee_tap_left ? 180 - angle_min + offset_angle : angle_min + offset_angle);
         current_mA = GetCurrent(10);
         delay(1000);
       }
@@ -3921,7 +3173,7 @@ void processManualmode(void) {
     inawatchdog = 1;
     alarm_overcurrent = 0;
   }
-  setPreferences();         //irgendwo anderst setzen. es muss nicht jede änderung geschrieben werden
+  pref.setPreferences();
 }
 
 void setup() {
@@ -3930,6 +3182,10 @@ void setup() {
   pinMode(button_stop_pin, INPUT_PULLDOWN);
   pinMode(switch_betrieb_pin, INPUT_PULLDOWN);
   pinMode(switch_setup_pin, INPUT_PULLDOWN);
+  pinMode(outputSW, INPUT_PULLUP);
+  // Buzzer
+  pinMode(buzzer_pin, OUTPUT);
+  pinMode(led_pin, OUTPUT);
   // additional pin setup for hardwarelevel 2
   #if HARDWARE_LEVEL == 2 or HARDWARE_LEVEL == 3
     pinMode (switch_vcc_pin, OUTPUT);
@@ -3950,11 +3206,15 @@ void setup() {
   Serial.begin(115200);
   while (!Serial) {}
   #if DEBUG_HM >= 1
+    delay(1000);
     Serial.println("Hanimandl Start");
   #endif
+  unsigned long button_millis;
   // Panik prodzedure wenn das NSV zerschossen wurde
-  if (digitalRead(button_stop_pin) == HIGH) {
-    while (digitalRead(button_stop_pin) == HIGH) {
+  if (digitalRead(outputSW) == LOW ) {
+    button_millis = millis();
+    while (digitalRead(outputSW) == LOW) {
+      if (millis() - button_millis >= 1000 and millis() - button_millis <= 1100) {buzzer(BUZZER_START_UP);}
       delay(1);
     }
     nvs_flash_erase();    // erase the NVS partition and...
@@ -3962,10 +3222,40 @@ void setup() {
     //Da machen wir gerade einen restart
     ESP.restart();
   }
-  // Preferences aus dem EEPROM lesen
-  getPreferences();
-  //Init display
+  // rotary_scale zurücksetzen
+  if (digitalRead(button_stop_pin) == HIGH) {
+    button_millis = millis();
+    while (digitalRead(button_stop_pin) == HIGH) {
+      if (millis() - button_millis >= 1000 and millis() - button_millis <= 1100) {buzzer(BUZZER_START_UP);}
+      delay(1);
+    }
+    pref.set_rotary_scale_Preferences(0);
+  }
+  // Get Preferences
+  pref.getPreferences();
+  // Start Display
   dis.begin();
+  // Set rotary scale when the varuable rotary_scale = 0
+  while (rotary_scale == 0) {
+    dis.set_rotary_scale();
+    if (digitalRead(button_start_pin) == HIGH and digitalRead(button_stop_pin) == LOW) {
+      button_millis = millis();
+      while (digitalRead(button_start_pin) == HIGH) {
+        if (millis() - button_millis >= 1000 and millis() - button_millis <= 1100) {buzzer(BUZZER_START_UP);}
+        delay(1);
+      }
+      pref.set_rotary_scale_Preferences(1);
+    }
+    else if (digitalRead(button_start_pin) == LOW and digitalRead(button_stop_pin) == HIGH) {
+      button_millis = millis();
+      while (digitalRead(button_stop_pin) == HIGH) {
+        if (millis() - button_millis >= 1000 and millis() - button_millis <= 1100) {buzzer(BUZZER_START_UP);}
+        delay(1);
+      }
+      pref.set_rotary_scale_Preferences(2);
+    }
+  }
+  dis.clear();
   // Try to initialize the INA219
   #if HARDWARE_LEVEL == 2
     I2C_2.begin(20, 19);    //SDA (20), SDL (19)
@@ -3992,24 +3282,21 @@ void setup() {
     #endif
   }
   // Rotary
-  pinMode(outputSW, INPUT_PULLUP);
   attachInterrupt(outputSW, isr1, FALLING);
   pinMode(outputA,INPUT);
   pinMode(outputB,INPUT);
   attachInterrupt(outputA, isr2, CHANGE);
-  // Buzzer
-  pinMode(buzzer_pin, OUTPUT);
-  pinMode(led_pin, OUTPUT);
   // short delay to let chip power up
   delay (100);
   // Servo initialisieren und schliessen
-  #if SERVO_ERWEITERT == 1
+  if (servo_expanded == 1) {
     servo.attach(servo_pin,  750, 2500); // erweiterte Initialisierung, steuert nicht jeden Servo an
     servo.setPeriodHertz(100);
-  #else
-    servo.attach(servo_pin, 1000, 2000); // default Werte. Achtung, steuert den Nullpunkt weniger weit aus!  
-  #endif
-  SERVO_WRITE(angle_min);
+  }
+  else{
+    servo.attach(servo_pin, 1000, 2000); // default Werte. Achtung, steuert den Nullpunkt weniger weit aus!
+  } 
+  servo.write(squee_tap_left ? 180 - angle_min : angle_min);
   // Waage erkennen - machen wir vor dem Boot-Screen, dann hat sie 3 Sekunden Zeit zum aufwärmen
   scale.begin(hx711_dt_pin, hx711_sck_pin);
   if (scale.wait_ready_timeout(1000)) {               // Waage angeschlossen? :Roli - Ist immer null wenn kein HX711 angeschlossen ist
@@ -4024,7 +3311,7 @@ void setup() {
   // Boot Screen
   if (showlogo) {
     dis.print_logo();
-    delay(3000);
+    if (showcredits) {delay(3000);}                 // Wenn credits nicht angezeigt werden, können wir gerade weiter machen mit dem booten
   }
   if (showcredits) {
     buzzer(BUZZER_SHORT);
@@ -4143,9 +3430,9 @@ void setup() {
     if (use_turntable == 1) {
       unsigned long turntable_millis = millis();
       esp_now_msg_recived = false;
-      strcpy(myMessageToBeSent.text, "close_drop_prodection");  //braucht keine Wartezeit
+      strcpy(myMessageToBeSent.text, "close_drop_prodection");
       espnow_send_data();
-      while (millis() - turntable_millis < 1000 and esp_now_msg_recived == false) {  //brechce ab wenn in 10 sek keine Rückmeldung kommt
+      while (millis() - turntable_millis < 1000 and esp_now_msg_recived == false) {
         delay(10);
       }
     }
@@ -4188,7 +3475,7 @@ void loop() {
 
 // Wir nutzen einen aktiven Summer, damit entfällt die tone Library, die sich sowieso mit dem Servo beisst.
 void buzzer(byte type) {
-  if (buzzermode == 1 or ledmode == 1) {
+  if ((buzzermode == 1 or ledmode == 1) or type == BUZZER_START_UP) {
     switch (type) {
       case BUZZER_SHORT: //short
         if (buzzermode == 1) {digitalWrite(buzzer_pin,HIGH);}
@@ -4229,6 +3516,11 @@ void buzzer(byte type) {
         if (buzzermode == 1 or ledmode == 1) {delay(1500);}
         if (buzzermode == 1) {digitalWrite(buzzer_pin,LOW);}
         if (ledmode == 1) {digitalWrite(led_pin,LOW);}
+        break;
+      case BUZZER_START_UP: //start up
+        digitalWrite(buzzer_pin,HIGH);
+        delay(200);
+        digitalWrite(buzzer_pin,LOW);
         break;
     }
   }
@@ -4272,6 +3564,66 @@ int steps2step(int sum) {
   if (sum > 100) {res += (sum-100)/25;  sum -= (sum-100);}
   if (sum >   5) {res += (sum-  5)/5;   sum -= (sum-5);  }
   res += sum;
+  return res;
+}
+
+int step2loadcell(int step) { 
+  int res = 0;
+  if      (step == 0)  {res = 1000;}
+  else if (step == 1)  {res = 2000;}
+  else if (step == 2)  {res = 3000;}
+  else if (step == 3)  {res = 5000;}
+  else if (step == 4)  {res = 10000;}
+  else if (step == 5)  {res = 20000;}
+  else if (step == 6)  {res = 50000;}
+  return res;
+}
+
+int loadcell2step(int weight) { 
+  int res = 0;
+  if      (weight == 1000)   {res = 0;}
+  else if (weight == 2000)   {res = 1;}
+  else if (weight == 3000)   {res = 2;}
+  else if (weight == 5000)   {res = 3;}
+  else if (weight == 10000)  {res = 4;}
+  else if (weight == 20000)  {res = 5;}
+  else if (weight == 50000)  {res = 6;}
+  return res;
+}
+
+int step2calweight(int step) { 
+  int res = 0;
+  if      (step == 0)   {res = 500;}
+  else if (step == 1)   {res = 1000;}
+  else if (step == 2)   {res = 2000;}
+  else if (step == 3)   {res = 3000;}
+  else if (step == 4)   {res = 5000;}
+  else if (step == 5)   {res = 10000;}
+  else if (step == 6)   {res = 15000;}
+  else if (step == 7)   {res = 20000;}
+  else if (step == 8)   {res = 25000;}
+  else if (step == 9)   {res = 30000;}
+  else if (step == 10)  {res = 35000;}
+  else if (step == 11)  {res = 40000;}
+  else if (step == 12)  {res = 45000;}
+  return res;
+}
+
+int calweight2step(int weight) { 
+  int res = 0;
+  if      (weight == 500)    {res = 0;}
+  else if (weight == 1000)   {res = 1;}
+  else if (weight == 2000)   {res = 2;}
+  else if (weight == 3000)   {res = 3;}
+  else if (weight == 5000)   {res = 4;}
+  else if (weight == 10000)  {res = 5;}
+  else if (weight == 15000)  {res = 6;}
+  else if (weight == 20000)  {res = 7;}
+  else if (weight == 25000)  {res = 8;}
+  else if (weight == 30000)  {res = 9;}
+  else if (weight == 35000)  {res = 10;}
+  else if (weight == 40000)  {res = 11;}
+  else if (weight == 45000)  {res = 12;}
   return res;
 }
 

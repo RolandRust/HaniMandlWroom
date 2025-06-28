@@ -10,5 +10,6 @@ class HM_OTA {
         HM_OTA();
         void ota_search_chanel();
         void ota_setup(const int switch_setup_pin, const int button_stop_pin);
+        void online_ota_setup();
 };
 #endif

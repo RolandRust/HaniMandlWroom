@@ -2,16 +2,19 @@ char LANGUAGE1[]            = "Jazyk";
 char LANGUAGE2[]            = "Slovenský";
 
 //Process Setup
-char TAREVALUES[]			= "Tara hodnoty";
-char CALIBRATION[]			= "Kalibrácia";
+char TAREVALUES[]			  = "Tara hodnoty";
+char SCALE[]			      = "Váha";	
 char FILL_QUANTITY[]		= "Mn. náplne";				//Množstvo náplne
-char AUTOMATIC[]			= "Automaticky";
+char AUTOMATIC[]			  = "Automaticky";
 char SERVOSETTINGS[]		= "Nastav servo";			//Nastavenia serva
-char PARAMETER[]			= "Parameter";
-char COUNTER[]				= "Pocítadlo";
+char PARAMETER[]			  = "Parameter";
+char COUNTER[]				  = "Pocítadlo";
 char COUNTER_TRIP[]			= "Pocet plnení";			//Počet naplnení
 char CLEAR_PREFS[]			= "Vymaz predvol";			//Vymazať predvoľby
 char INA219_SETUP[]			= "INA219 Setup";
+
+// Setup Scale
+char CALIBRATION[]			= "Kalibrácia";
 
 //Setup Tarevalues
 char TAREVALUES_JAR[]		= "Tara hodnoty pohárov";	//DISPLAY:	Tarevalues jars
@@ -116,7 +119,7 @@ char OTA_UPDATE[]           = "OTA update";
 //Warnings
 //bez váhy
 char NO[] 					= "ziadne";							//DISPLAY:	no
-char SCALE[]				= "váha!";						//			scale!
+char SCALE_1[]			= "váha!";						//			scale!
 //nie je kalibrované
 char NOT[]					= "nie je";						//DISPLAY:	not
 char CALIBRATED[]			= "kalibrované";					//			calibrated
