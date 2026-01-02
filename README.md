@@ -14,7 +14,7 @@ Open Source ist echt genial. Sich damit zu bereichern, ohne auch nur eine Änder
 
 Aus dem kleinen wird der große – aber das wird weniger. Der Dreifach-Switch sowie Start- und Stop-Taster verschwinden. Übrig bleiben nur noch der Rotary-Encoder und ein 4-Zoll-TFT (und sollte ich mich irgendwo geirrt haben, hätte ich noch den Touch als Backup).
 
-Wird es wieder Open Source? Wahrscheinlich nicht – wegen solcher doofen Vögel.
+Wird es wieder Open Source? Wahrscheinlich nicht – wegen solchen doofen Vögel.
 
 ![BuzzFill](./Hardware/Gehäuse/Bilder/BuzzFill.jpg)
 
