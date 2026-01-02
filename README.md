@@ -8,6 +8,17 @@ HaniMandel für das Node MCU ESP32 38Pin Evaluation Board<br>
 Dies ist eine abgeänderte Version von dem Orginal HaniMandl Projekt. Die Idee und Veröffentlichung wurde auf der Facebook-Gruppe ["Imkerei und Technik. Eigenbau"](https://www.facebook.com/groups/139671009967454) veröffentlicht.
 Als Grundlage für dieses Projekt bediente ich mich am [develop Branch (V0.2.13)](https://github.com/ClemensGruber/hani-mandl/tree/develop) von Clemens Gruber.
 
+## Projekt ligt momentan auf dem Eis
+
+Open Source ist echt genial. Sich damit zu bereichern, ohne auch nur eine Änderung beizutragen, oder einfach nur die eigenen Daten für das Gehäuse zu veröffentlichen, ist einfach doof. Deshalb habe ich das Projekt erstmal auf Eis gelegt. Auch der Dev-Branch wird nicht mehr mit den neuesten Aktualisierungen versorgt. Ich gehe nun einen anderen Weg.
+
+Aus dem kleinen wird der große – aber das wird weniger. Der Dreifach-Switch sowie Start- und Stop-Taster verschwinden. Übrig bleiben nur noch der Rotary-Encoder und ein 4-Zoll-TFT (und sollte ich mich irgendwo geirrt haben, hätte ich noch den Touch als Backup).
+
+Wird es wieder Open Source? Wahrscheinlich nicht – wegen solcher doofen Vögel.
+
+![BuzzFill](./Hardware/Gehäuse/Bilder/BuzzFill.jpg)
+
+
 ## Einstellungen
 ```
 //
